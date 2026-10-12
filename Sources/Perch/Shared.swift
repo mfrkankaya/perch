@@ -37,17 +37,18 @@ enum Fmt {
     }()
 
     static func relative(_ d: Date) -> String {
-        if abs(d.timeIntervalSinceNow) < 10 { return "şimdi" }
+        if abs(d.timeIntervalSinceNow) < 10 { return L("şimdi") }
+        relativeFormatter.locale = Loc.locale
         return relativeFormatter.localizedString(for: d, relativeTo: .now)
     }
 
     static func duration(_ t: TimeInterval) -> String {
         let s = max(0, Int(t))
         let d = s / 86400, h = (s % 86400) / 3600, m = (s % 3600) / 60
-        if d > 0 { return "\(d)g \(h)sa" }
-        if h > 0 { return "\(h)sa \(m)dk" }
-        if m > 0 { return "\(m)dk" }
-        return "\(s)sn"
+        if d > 0 { return L("%dg %dsa", d, h) }
+        if h > 0 { return L("%dsa %ddk", h, m) }
+        if m > 0 { return L("%ddk", m) }
+        return L("%dsn", s)
     }
 }
 
@@ -171,7 +172,7 @@ enum FS {
             }.joined(separator: " ; ")
             let user = NSUserName()
             let full = cmd + " ; /usr/sbin/chown -R \(Shell.quote(user)) \(Shell.quote(trash)) 2>/dev/null; true"
-            if Shell.runAsAdmin(full, prompt: "Perch bazı korumalı dosyaları Çöp Kutusu'na taşımak istiyor.") {
+            if Shell.runAsAdmin(full, prompt: L("Perch bazı korumalı dosyaları Çöp Kutusu'na taşımak istiyor.")) {
                 let still = failed.filter { FileManager.default.fileExists(atPath: $0.path) }
                 ok += failed.count - still.count
                 failed = still

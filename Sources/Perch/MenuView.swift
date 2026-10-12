@@ -21,12 +21,12 @@ struct MenuView: View {
     private var header: some View {
         HStack(spacing: 8) {
             Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 22, height: 22)
-            Text("Perch").font(.headline)
+            Text(L("Perch")).font(.headline)
             Spacer()
             Button { open(.settings) } label: { Image(systemName: "gearshape") }
-                .buttonStyle(.plain).help("Ayarlar")
+                .buttonStyle(.plain).help(L("Ayarlar"))
             Button { NSApp.terminate(nil) } label: { Image(systemName: "power") }
-                .buttonStyle(.plain).help("Çık")
+                .buttonStyle(.plain).help(L("Çık"))
         }
     }
 
@@ -39,7 +39,7 @@ struct MenuView: View {
                     .foregroundStyle(awake.isActive ? Color.orange : .secondary)
                     .frame(width: 20)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Uyanık kal").fontWeight(.medium)
+                    Text(L("Uyanık kal")).fontWeight(.medium)
                     remaining
                 }
                 Spacer()
@@ -50,7 +50,7 @@ struct MenuView: View {
                 ForEach(KeepAwake.presets, id: \.seconds) { p in
                     let selected = awake.isActive && isCurrent(p.seconds)
                     Button { awake.start(p.seconds) } label: {
-                        Text(p.label).font(.caption.weight(.medium)).frame(maxWidth: .infinity).padding(.vertical, 4)
+                        Text(L(p.label)).font(.caption.weight(.medium)).frame(maxWidth: .infinity).padding(.vertical, 4)
                             .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Color.accentColor : Color.primary.opacity(0.07)))
                             .foregroundStyle(selected ? Color.white : .primary)
                     }
@@ -63,8 +63,8 @@ struct MenuView: View {
                     .foregroundStyle(lid.isEnabled ? Color.orange : .secondary)
                     .frame(width: 20)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Kapak kapalıyken çalış").fontWeight(.medium)
-                    Text(lid.lastError ?? (lid.isEnabled ? "Uyku tamamen kapalı – çantaya koyarken dikkat" : "Kapak kapanınca uyumaz"))
+                    Text(L("Kapak kapalıyken çalış")).fontWeight(.medium)
+                    Text(lid.lastError ?? (lid.isEnabled ? L("Uyku tamamen kapalı – çantaya koyarken dikkat") : L("Kapak kapanınca uyumaz")))
                         .font(.caption).foregroundStyle(lid.lastError != nil ? .red : .secondary)
                 }
                 Spacer()
@@ -84,10 +84,10 @@ struct MenuView: View {
     @ViewBuilder private var remaining: some View {
         if awake.isActive, let end = awake.endsAt {
             TimelineView(.periodic(from: .now, by: 1)) { ctx in
-                Text("\(Fmt.duration(end.timeIntervalSince(ctx.date))) kaldı").font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                Text(L("%@ kaldı", Fmt.duration(end.timeIntervalSince(ctx.date)))).font(.caption).monospacedDigit().foregroundStyle(.secondary)
             }
         } else {
-            Text(awake.isActive ? "Süresiz açık" : "Kapalı").font(.caption).foregroundStyle(.secondary)
+            Text(awake.isActive ? L("Süresiz açık") : L("Kapalı")).font(.caption).foregroundStyle(.secondary)
         }
     }
 
@@ -96,7 +96,7 @@ struct MenuView: View {
     private var usageSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Limitler").font(.subheadline.weight(.semibold))
+                Text(L("Limitler")).font(.subheadline.weight(.semibold))
                 Spacer()
                 if usage.isLoading {
                     ProgressView().controlSize(.mini)
@@ -130,7 +130,7 @@ struct MenuView: View {
                 }
                 ForEach(u.windows) { w in UsageBar(window: w, color: color) }
             } else {
-                Text("Yükleniyor…").font(.caption).foregroundStyle(.secondary)
+                Text(L("Yükleniyor…")).font(.caption).foregroundStyle(.secondary)
             }
         }
     }
@@ -139,9 +139,9 @@ struct MenuView: View {
 
     private var captureSection: some View {
         HStack(spacing: 8) {
-            captureButton("Alan", "crop", Hotkey.load(Keys.hotkeyArea)?.display, .area)
-            captureButton("Pencere", "macwindow", nil, .window)
-            captureButton("Ekran", "display", Hotkey.load(Keys.hotkeyScreen)?.display, .screen)
+            captureButton(L("Alan"), "crop", Hotkey.load(Keys.hotkeyArea)?.display, .area)
+            captureButton(L("Pencere"), "macwindow", nil, .window)
+            captureButton(L("Ekran"), "display", Hotkey.load(Keys.hotkeyScreen)?.display, .screen)
         }
     }
 
@@ -167,10 +167,10 @@ struct MenuView: View {
 
     private var toolsSection: some View {
         VStack(spacing: 2) {
-            toolRow(.activity, "Mac'i en çok yoran uygulamalar")
-            toolRow(.cleanup, "Gereksiz dosyaları temizle")
-            toolRow(.disk, "Büyük dosya ve klasörler")
-            toolRow(.apps, "Uygulama ve verilerini kaldır")
+            toolRow(.activity, L("Mac'i en çok yoran uygulamalar"))
+            toolRow(.cleanup, L("Gereksiz dosyaları temizle"))
+            toolRow(.disk, L("Büyük dosya ve klasörler"))
+            toolRow(.apps, L("Uygulama ve verilerini kaldır"))
         }
     }
 
@@ -204,7 +204,7 @@ struct UsageBar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack {
-                Text(window.label).font(.caption)
+                Text(L(window.label)).font(.caption)
                 Spacer()
                 Text("%\(Int(window.percent.rounded()))").font(.caption.weight(.semibold)).monospacedDigit()
             }
@@ -216,7 +216,7 @@ struct UsageBar: View {
             }
             .frame(height: 5)
             if let r = window.resetsAt {
-                Text("Sıfırlanma: \(Fmt.relative(r))").font(.caption2).foregroundStyle(.tertiary)
+                Text(L("Sıfırlanma: %@", Fmt.relative(r))).font(.caption2).foregroundStyle(.tertiary)
             }
         }
     }
@@ -262,6 +262,6 @@ struct PillSwitch: ToggleStyle {
             .contentShape(Capsule())
             .onTapGesture { configuration.isOn.toggle() }
             .accessibilityAddTraits(.isButton)
-            .accessibilityValue(on ? "Açık" : "Kapalı")
+            .accessibilityValue(on ? L("Açık") : L("Kapalı"))
     }
 }

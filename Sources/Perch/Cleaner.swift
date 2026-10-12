@@ -153,8 +153,8 @@ final class CleanerModel: ObservableObject {
             await MainActor.run {
                 self.deleting = false
                 self.message = f == 0
-                    ? "\(Fmt.bytes(freed)) temizlendi\(permanently ? "" : " (Çöp Kutusu'na taşındı)")."
-                    : "Temizlendi; \(f) öğe kullanımda ya da korumalı olduğu için atlandı."
+                    ? (permanently ? L("%@ temizlendi.", Fmt.bytes(freed)) : L("%@ temizlendi (Çöp Kutusu'na taşındı).", Fmt.bytes(freed)))
+                    : L("Temizlendi; %d öğe kullanımda ya da korumalı olduğu için atlandı.", f)
                 self.scan()
             }
         }
@@ -184,24 +184,24 @@ struct CleanerView: View {
             footer
         }
         .onAppear { model.scanIfNeeded() }
-        .confirmationDialog("Seçili \(model.selection.count) öğe temizlensin mi?", isPresented: $confirm) {
-            Button(permanently ? "Kalıcı olarak sil" : "Çöp Kutusu'na taşı", role: .destructive) {
+        .confirmationDialog(L("Seçili %d öğe temizlensin mi?", model.selection.count), isPresented: $confirm) {
+            Button(permanently ? L("Kalıcı olarak sil") : L("Çöp Kutusu'na taşı"), role: .destructive) {
                 model.clean(permanently: permanently)
             }
         } message: {
-            Text("Toplam \(Fmt.bytes(model.selectedSize)). Önbellekler uygulamalar tarafından yeniden oluşturulur.")
+            Text(L("Toplam %@. Önbellekler uygulamalar tarafından yeniden oluşturulur.", Fmt.bytes(model.selectedSize)))
         }
     }
 
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Temizlik").font(.title2.bold())
-                Text("Silinmesi güvenli önbellek, günlük ve geçici dosyalar").foregroundStyle(.secondary)
+                Text(L("Temizlik")).font(.title2.bold())
+                Text(L("Silinmesi güvenli önbellek, günlük ve geçici dosyalar")).foregroundStyle(.secondary)
             }
             Spacer()
             if model.scanning { ProgressView().controlSize(.small) }
-            Button { model.scan() } label: { Label("Yeniden tara", systemImage: "arrow.clockwise") }
+            Button { model.scan() } label: { Label(L("Yeniden tara"), systemImage: "arrow.clockwise") }
                 .disabled(model.scanning || model.deleting)
         }
         .padding()
@@ -214,12 +214,12 @@ struct CleanerView: View {
                 .disabled(c.items.isEmpty)
             Image(systemName: c.icon).frame(width: 22).foregroundStyle(Color.accentColor)
             VStack(alignment: .leading, spacing: 1) {
-                Text(c.title).fontWeight(.medium)
-                Text(c.detail).font(.caption).foregroundStyle(.secondary)
+                Text(L(c.title)).fontWeight(.medium)
+                Text(L(c.detail)).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
             if !c.scanned { ProgressView().controlSize(.mini) } else {
-                Text(c.total > 0 ? Fmt.bytes(c.total) : "Boş").monospacedDigit().foregroundStyle(c.total > 0 ? .primary : .secondary)
+                Text(c.total > 0 ? Fmt.bytes(c.total) : L("Boş")).monospacedDigit().foregroundStyle(c.total > 0 ? .primary : .secondary)
             }
             Button {
                 if model.expanded.contains(c.id) { model.expanded.remove(c.id) } else { model.expanded.insert(c.id) }
@@ -242,7 +242,7 @@ struct CleanerView: View {
             Spacer()
             Text(Fmt.bytes(item.size)).monospacedDigit().foregroundStyle(.secondary)
             Button { NSWorkspace.shared.activateFileViewerSelecting([item.url]) } label: { Image(systemName: "magnifyingglass") }
-                .buttonStyle(.borderless).help("Finder'da göster")
+                .buttonStyle(.borderless).help(L("Finder'da göster"))
         }
         .font(.callout)
         .padding(.leading, 34)
@@ -252,11 +252,11 @@ struct CleanerView: View {
         HStack {
             if let m = model.message { Text(m).foregroundStyle(.secondary) }
             Spacer()
-            Toggle("Kalıcı sil", isOn: $permanently).toggleStyle(.checkbox)
+            Toggle(L("Kalıcı sil"), isOn: $permanently).toggleStyle(.checkbox)
             Button {
                 confirm = true
             } label: {
-                Text(model.deleting ? "Temizleniyor…" : "Temizle · \(Fmt.bytes(model.selectedSize))").frame(minWidth: 140)
+                Text(model.deleting ? L("Temizleniyor…") : L("Temizle · %@", Fmt.bytes(model.selectedSize))).frame(minWidth: 140)
             }
             .keyboardShortcut(.defaultAction)
             .controlSize(.large)

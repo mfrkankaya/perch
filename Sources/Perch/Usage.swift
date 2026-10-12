@@ -102,7 +102,7 @@ final class UsageStore: ObservableObject {
 
     static func fetchClaude() async -> ProviderUsage {
         guard let cred = await Task.detached(operation: { claudeCredentials() }).value else {
-            return ProviderUsage(error: "Claude Code girişi bulunamadı")
+            return ProviderUsage(error: L("Claude Code girişi bulunamadı"))
         }
         var req = URLRequest(url: URL(string: "https://api.anthropic.com/api/oauth/usage")!)
         req.setValue("Bearer \(cred.token)", forHTTPHeaderField: "Authorization")
@@ -111,7 +111,7 @@ final class UsageStore: ObservableObject {
         let (code, json) = await getJSON(req)
         var result = ProviderUsage(plan: cred.plan?.capitalized)
         guard code == 200, let json else {
-            result.error = code == 401 ? "Oturum süresi dolmuş – terminalde `claude` çalıştır" : "Alınamadı (\(code))"
+            result.error = code == 401 ? L("Oturum süresi dolmuş – terminalde `claude` çalıştır") : L("Alınamadı (%d)", code)
             return result
         }
         if let limits = json["limits"] as? [[String: Any]], !limits.isEmpty {
@@ -120,29 +120,29 @@ final class UsageStore: ObservableObject {
                 let kind = l["kind"] as? String ?? "limit"
                 var label: String
                 switch kind {
-                case "session": label = "Oturum (5 sa)"
-                case "weekly_all": label = "Haftalık"
-                case "weekly_scoped": label = "Haftalık"
+                case "session": label = L("Oturum (5 sa)")
+                case "weekly_all": label = L("Haftalık")
+                case "weekly_scoped": label = L("Haftalık")
                 default: label = kind.replacingOccurrences(of: "_", with: " ").capitalized
                 }
                 if let scope = l["scope"] as? [String: Any],
                    let model = scope["model"] as? [String: Any],
                    let name = model["display_name"] as? String {
-                    label += " · \(name)"
+                    label += " · " + name
                 }
                 result.windows.append(UsageWindow(id: "\(i)-\(kind)", label: label, percent: pct,
                                                   resetsAt: parseISO(l["resets_at"])))
             }
         } else {
-            let keys = [("five_hour", "Oturum (5 sa)"), ("seven_day", "Haftalık"),
-                        ("seven_day_opus", "Haftalık · Opus"), ("seven_day_sonnet", "Haftalık · Sonnet")]
+            let keys = [("five_hour", L("Oturum (5 sa)")), ("seven_day", L("Haftalık")),
+                        ("seven_day_opus", L("Haftalık · Opus")), ("seven_day_sonnet", L("Haftalık · Sonnet"))]
             for (key, label) in keys {
                 guard let w = json[key] as? [String: Any],
                       let pct = (w["utilization"] as? NSNumber)?.doubleValue else { continue }
                 result.windows.append(UsageWindow(id: key, label: label, percent: pct, resetsAt: parseISO(w["resets_at"])))
             }
         }
-        if result.windows.isEmpty { result.error = "Limit bilgisi yok" }
+        if result.windows.isEmpty { result.error = L("Limit bilgisi yok") }
         return result
     }
 
@@ -159,7 +159,7 @@ final class UsageStore: ObservableObject {
 
     static func fetchCodex() async -> ProviderUsage {
         guard let cred = await Task.detached(operation: { codexCredentials() }).value else {
-            return ProviderUsage(error: "Codex girişi bulunamadı (~/.codex/auth.json)")
+            return ProviderUsage(error: L("Codex girişi bulunamadı (~/.codex/auth.json)"))
         }
         var req = URLRequest(url: URL(string: "https://chatgpt.com/backend-api/wham/usage")!)
         req.setValue("Bearer \(cred.token)", forHTTPHeaderField: "Authorization")
@@ -169,7 +169,7 @@ final class UsageStore: ObservableObject {
         let (code, json) = await getJSON(req)
         var result = ProviderUsage()
         guard code == 200, let json else {
-            result.error = code == 401 ? "Oturum süresi dolmuş – terminalde `codex` çalıştır" : "Alınamadı (\(code))"
+            result.error = code == 401 ? L("Oturum süresi dolmuş – terminalde `codex` çalıştır") : L("Alınamadı (%d)", code)
             return result
         }
         result.plan = (json["plan_type"] as? String)?.capitalized
@@ -187,18 +187,18 @@ final class UsageStore: ObservableObject {
                 result.windows.append(UsageWindow(id: key, label: windowLabel(secs), percent: pct, resetsAt: reset))
             }
         }
-        if result.windows.isEmpty { result.error = "Limit bilgisi yok" }
+        if result.windows.isEmpty { result.error = L("Limit bilgisi yok") }
         return result
     }
 
     private static func windowLabel(_ secs: Int) -> String {
         switch secs {
-        case 0: return "Limit"
-        case 18000: return "Oturum (5 sa)"
-        case 604800: return "Haftalık"
-        case 2_400_000...2_700_000: return "Aylık"
+        case 0: return L("Limit")
+        case 18000: return L("Oturum (5 sa)")
+        case 604800: return L("Haftalık")
+        case 2_400_000...2_700_000: return L("Aylık")
         default:
-            return secs >= 86400 ? "\(secs / 86400) günlük" : "\(max(1, secs / 3600)) saatlik"
+            return secs >= 86400 ? L("%d günlük", secs / 86400) : L("%d saatlik", max(1, secs / 3600))
         }
     }
 

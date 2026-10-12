@@ -301,7 +301,7 @@ struct ShelfView: View {
                 Button {
                     shelf.clear()
                 } label: {
-                    Label("Tümünü kapat", systemImage: "xmark")
+                    Label(L("Tümünü kapat"), systemImage: "xmark")
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 10).padding(.vertical, 5)
                         .background(.regularMaterial, in: Capsule())
@@ -344,21 +344,21 @@ struct ShotCard: View {
                     HStack {
                         if item.savedTo != nil {
                             Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                                .help("Kaydedildi")
+                                .help(L("Kaydedildi"))
                         }
                         Spacer()
-                        iconButton("xmark", help: "Kapat") { shelf.remove(item) }
+                        iconButton("xmark", help: L("Kapat")) { shelf.remove(item) }
                     }
                     Spacer()
                     HStack(spacing: 6) {
-                        pill("Kopyala", "doc.on.doc") {
+                        pill(L("Kopyala"), "doc.on.doc") {
                             Screenshotter.copy(item.url)
-                            flash("Kopyalandı")
+                            flash(L("Kopyalandı"))
                         }
-                        pill("Kaydet", "square.and.arrow.down") {
-                            if shelf.save(item) != nil { flash("Kaydedildi") }
+                        pill(L("Kaydet"), "square.and.arrow.down") {
+                            if shelf.save(item) != nil { flash(L("Kaydedildi")) }
                         }
-                        iconButton("ellipsis", help: "Farklı kaydet…") { shelf.saveAs(item) }
+                        iconButton("ellipsis", help: L("Farklı kaydet…")) { shelf.saveAs(item) }
                     }
                 }
                 .padding(8)
@@ -382,7 +382,7 @@ struct ShotCard: View {
         }
         .onDrag { NSItemProvider(contentsOf: item.url) ?? NSItemProvider() }
         .onTapGesture(count: 2) { NSWorkspace.shared.open(item.url) }
-        .help("Sürükle-bırak · çift tıkla aç")
+        .help(L("Sürükle-bırak · çift tıkla aç"))
     }
 
     private func flash(_ text: String) {

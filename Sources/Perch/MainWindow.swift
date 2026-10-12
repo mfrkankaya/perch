@@ -7,11 +7,11 @@ enum MainTab: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .cleanup: "Temizlik"
-        case .disk: "Büyük Dosyalar"
-        case .apps: "Uygulama Kaldır"
-        case .activity: "Etkinlik"
-        case .settings: "Ayarlar"
+        case .cleanup: L("Temizlik")
+        case .disk: L("Büyük Dosyalar")
+        case .apps: L("Uygulama Kaldır")
+        case .activity: L("Etkinlik")
+        case .settings: L("Ayarlar")
         }
     }
     var icon: String {
@@ -72,6 +72,12 @@ final class MainWindowController: NSObject, NSWindowDelegate {
         window?.performClose(nil)
     }
 
+    /// Rebuilds the SwiftUI tree so every string picks up a language change.
+    func reloadContent() {
+        guard let window, let models else { return }
+        window.contentViewController = NSHostingController(rootView: MainView(models: models))
+    }
+
     /// Re-focuses the window after something else (an admin prompt, a quitting app) took focus.
     func bringToFront() {
         guard let window else { return }
@@ -123,11 +129,23 @@ struct SettingsView: View {
     @ObservedObject private var lid = LidSleep.shared
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var screenAccess = CGPreflightScreenCaptureAccess()
+    @State private var language = Loc.choice
 
     var body: some View {
         Form {
-            Section("Genel") {
-                Toggle("Girişte otomatik başlat", isOn: $launchAtLogin)
+            Section(L("Genel")) {
+                Picker(L("Dil"), selection: $language) {
+                    Text(L("Sistem")).tag(Loc.Choice.system)
+                    Text("Türkçe").tag(Loc.Choice.tr)
+                    Text("English").tag(Loc.Choice.en)
+                }
+                .onChange(of: language) { _, c in
+                    Loc.set(c)
+                    NSApp.mainMenu = AppDelegate.makeMainMenu()
+                    UsageStore.shared.refresh()
+                    DispatchQueue.main.async { MainWindowController.shared.reloadContent() }
+                }
+                Toggle(L("Girişte otomatik başlat"), isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, on in
                         do {
                             if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
@@ -135,56 +153,56 @@ struct SettingsView: View {
                             launchAtLogin = SMAppService.mainApp.status == .enabled
                         }
                     }
-                LabeledContent("Tam Disk Erişimi") {
+                LabeledContent(L("Tam Disk Erişimi")) {
                     if FS.hasFullDiskAccess {
-                        Label("Verildi", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                        Label(L("Verildi"), systemImage: "checkmark.circle.fill").foregroundStyle(.green)
                     } else {
-                        Button("Sistem Ayarları'nı aç") {
+                        Button(L("Sistem Ayarları'nı aç")) {
                             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")!)
                         }
                     }
                 }
-                Toggle("Menü çubuğunda Claude oturum yüzdesini göster", isOn: $showClaude)
+                Toggle(L("Menü çubuğunda Claude oturum yüzdesini göster"), isOn: $showClaude)
                     .onChange(of: showClaude) { _, _ in UsageStore.shared.configureBackgroundPolling() }
             }
 
-            Section("Uyanık kalma") {
-                Toggle("Ekranı da açık tut", isOn: $keepDisplayOn)
+            Section(L("Uyanık kalma")) {
+                Toggle(L("Ekranı da açık tut"), isOn: $keepDisplayOn)
                     .onChange(of: keepDisplayOn) { _, _ in KeepAwake.shared.reapply() }
-                LabeledContent("Kapak kapalı modu") {
+                LabeledContent(L("Kapak kapalı modu")) {
                     if lid.passwordless {
                         HStack {
-                            Label("Şifresiz", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
-                            Button("Kaldır") { lid.removePasswordless() }
+                            Label(L("Şifresiz"), systemImage: "checkmark.seal.fill").foregroundStyle(.green)
+                            Button(L("Kaldır")) { lid.removePasswordless() }
                         }
                     } else {
-                        Button("Şifresiz kullanımı kur…") { lid.installPasswordless() }
+                        Button(L("Şifresiz kullanımı kur…")) { lid.installPasswordless() }
                     }
                 }
-                Text("Kapak modu `pmset disablesleep` kullanır ve root ister. Şifresiz kurulum, yalnızca bu iki pmset komutuna izin veren bir sudoers kuralı ekler (/etc/sudoers.d/perch). Perch kapanırken ayar geri alınır.")
+                Text(L("Kapak modu `pmset disablesleep` kullanır ve root ister. Şifresiz kurulum, yalnızca bu iki pmset komutuna izin veren bir sudoers kuralı ekler (/etc/sudoers.d/perch). Perch kapanırken ayar geri alınır."))
                     .font(.caption).foregroundStyle(.secondary)
             }
 
-            Section("Ekran görüntüsü") {
-                LabeledContent("Alan / pencere") { HotkeyRecorder(key: Keys.hotkeyArea) }
-                LabeledContent("Tam ekran") { HotkeyRecorder(key: Keys.hotkeyScreen) }
-                Text("Alan modunda Boşluk tuşu pencere seçimine geçer.").font(.caption).foregroundStyle(.secondary)
+            Section(L("Ekran görüntüsü")) {
+                LabeledContent(L("Alan / pencere")) { HotkeyRecorder(key: Keys.hotkeyArea) }
+                LabeledContent(L("Tam ekran")) { HotkeyRecorder(key: Keys.hotkeyScreen) }
+                Text(L("Alan modunda Boşluk tuşu pencere seçimine geçer.")).font(.caption).foregroundStyle(.secondary)
                 if Hotkey.systemScreenshotShortcutsEnabled {
                     HStack {
-                        Label("macOS'in kendi ⇧⌘3 / ⇧⌘4 kısayolları açık ve Perch'ünkünü eziyor. Klavye › Kısayollar › Ekran Görüntüleri'nden kapat.",
+                        Label(L("macOS'in kendi ⇧⌘3 / ⇧⌘4 kısayolları açık ve Perch'ünkünü eziyor. Klavye › Kısayollar › Ekran Görüntüleri'nden kapat."),
                               systemImage: "exclamationmark.triangle")
                             .font(.caption).foregroundStyle(.orange)
-                        Button("Aç") {
+                        Button(L("Aç")) {
                             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension")!)
                         }
                     }
                 }
-                Toggle("Alındığında panoya kopyala", isOn: $copyOnCapture)
-                LabeledContent("Kaydetme klasörü") {
+                Toggle(L("Alındığında panoya kopyala"), isOn: $copyOnCapture)
+                LabeledContent(L("Kaydetme klasörü")) {
                     HStack {
                         Text(saveFolder.replacingOccurrences(of: FS.home, with: "~")).foregroundStyle(.secondary)
                             .lineLimit(1).truncationMode(.middle)
-                        Button("Değiştir…") {
+                        Button(L("Değiştir…")) {
                             let p = NSOpenPanel()
                             p.canChooseDirectories = true
                             p.canChooseFiles = false
@@ -194,17 +212,17 @@ struct SettingsView: View {
                         }
                     }
                 }
-                Picker("Yığından otomatik kaldır", selection: $shelfAutoClose) {
-                    Text("Asla").tag(0)
-                    Text("30 saniye").tag(30)
-                    Text("1 dakika").tag(60)
-                    Text("5 dakika").tag(300)
+                Picker(L("Yığından otomatik kaldır"), selection: $shelfAutoClose) {
+                    Text(L("Asla")).tag(0)
+                    Text(L("30 saniye")).tag(30)
+                    Text(L("1 dakika")).tag(60)
+                    Text(L("5 dakika")).tag(300)
                 }
-                LabeledContent("Ekran kaydı izni") {
+                LabeledContent(L("Ekran kaydı izni")) {
                     if screenAccess {
-                        Label("Verildi", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                        Label(L("Verildi"), systemImage: "checkmark.circle.fill").foregroundStyle(.green)
                     } else {
-                        Button("Sistem Ayarları'nı aç") {
+                        Button(L("Sistem Ayarları'nı aç")) {
                             CGRequestScreenCaptureAccess()
                             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
                         }
@@ -217,7 +235,7 @@ struct SettingsView: View {
                     Text("Perch \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev")")
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Button("Çık") { NSApp.terminate(nil) }
+                    Button(L("Çık")) { NSApp.terminate(nil) }
                 }
             }
         }
@@ -237,7 +255,7 @@ struct HotkeyRecorder: View {
             Button {
                 recording ? stop() : start()
             } label: {
-                Text(recording ? "Kısayola bas…" : (current?.display ?? "Yok"))
+                Text(recording ? L("Kısayola bas…") : (current?.display ?? L("Yok")))
                     .frame(minWidth: 90)
                     .monospaced()
             }

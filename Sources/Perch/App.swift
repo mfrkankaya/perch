@@ -37,7 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Shown only while the window is open (regular activation): standard editing and window shortcuts.
-    private static func makeMainMenu() -> NSMenu {
+    static func makeMainMenu() -> NSMenu {
         let main = NSMenu()
         func submenu(_ title: String, _ items: [NSMenuItem]) {
             let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
@@ -48,28 +48,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         func mi(_ t: String, _ a: Selector?, _ k: String) -> NSMenuItem { NSMenuItem(title: t, action: a, keyEquivalent: k) }
         submenu("Perch", [
-            mi("Perch'ü Gizle", #selector(NSApplication.hide(_:)), "h"),
+            mi(L("Perch'ü Gizle"), #selector(NSApplication.hide(_:)), "h"),
             .separator(),
             // ⌘Q only closes the window; Perch keeps living in the menu bar.
-            mi("Pencereyi Kapat", #selector(AppDelegate.closeMainWindow(_:)), "q"),
+            mi(L("Pencereyi Kapat"), #selector(AppDelegate.closeMainWindow(_:)), "q"),
             {
-                let quit = mi("Perch'ten Tamamen Çık", #selector(NSApplication.terminate(_:)), "q")
+                let quit = mi(L("Perch'ten Tamamen Çık"), #selector(NSApplication.terminate(_:)), "q")
                 quit.keyEquivalentModifierMask = [.command, .option]
                 return quit
             }(),
         ])
-        submenu("Düzen", [
-            mi("Geri Al", Selector(("undo:")), "z"),
-            mi("Yinele", Selector(("redo:")), "Z"),
+        submenu(L("Düzen"), [
+            mi(L("Geri Al"), Selector(("undo:")), "z"),
+            mi(L("Yinele"), Selector(("redo:")), "Z"),
             .separator(),
-            mi("Kes", #selector(NSText.cut(_:)), "x"),
-            mi("Kopyala", #selector(NSText.copy(_:)), "c"),
-            mi("Yapıştır", #selector(NSText.paste(_:)), "v"),
-            mi("Tümünü Seç", #selector(NSText.selectAll(_:)), "a"),
+            mi(L("Kes"), #selector(NSText.cut(_:)), "x"),
+            mi(L("Kopyala"), #selector(NSText.copy(_:)), "c"),
+            mi(L("Yapıştır"), #selector(NSText.paste(_:)), "v"),
+            mi(L("Tümünü Seç"), #selector(NSText.selectAll(_:)), "a"),
         ])
-        submenu("Pencere", [
-            mi("Kapat", #selector(NSWindow.performClose(_:)), "w"),
-            mi("Küçült", #selector(NSWindow.performMiniaturize(_:)), "m"),
+        submenu(L("Pencere"), [
+            mi(L("Kapat"), #selector(NSWindow.performClose(_:)), "w"),
+            mi(L("Küçült"), #selector(NSWindow.performMiniaturize(_:)), "m"),
         ])
         return main
     }

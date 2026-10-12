@@ -212,9 +212,9 @@ final class AppsModel: ObservableObject {
             MainWindowController.shared.bringToFront()
             let bundleGone = !FileManager.default.fileExists(atPath: app.url.path)
             if res.failed.isEmpty {
-                message = "\(app.name): \(res.ok) öğe Çöp Kutusu'na taşındı."
+                message = L("%@: %d öğe Çöp Kutusu'na taşındı.", app.name, res.ok)
             } else {
-                message = "\(res.failed.count) öğe taşınamadı."
+                message = L("%d öğe taşınamadı.", res.failed.count)
             }
             if bundleGone {
                 apps.removeAll { $0.id == app.id }
@@ -242,9 +242,9 @@ struct AppsView: View {
     private var appList: some View {
         VStack(spacing: 0) {
             HStack {
-                TextField("Ara", text: $model.search).textFieldStyle(.roundedBorder)
+                TextField(L("Ara"), text: $model.search).textFieldStyle(.roundedBorder)
                 Picker("", selection: $model.sort) {
-                    ForEach(AppsModel.Sort.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    ForEach(AppsModel.Sort.allCases, id: \.self) { Text(L($0.rawValue)).tag($0) }
                 }
                 .labelsHidden().frame(width: 80)
             }
@@ -281,7 +281,7 @@ struct AppsView: View {
                 .padding()
                 Divider()
                 if model.loadingRelated {
-                    ProgressView("Dosyalar aranıyor…").frame(maxWidth: .infinity, maxHeight: .infinity)
+                    ProgressView(L("Dosyalar aranıyor…")).frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     relatedList
                 }
@@ -289,12 +289,12 @@ struct AppsView: View {
                 HStack {
                     if let m = model.message { Text(m).foregroundStyle(.secondary) }
                     else if model.isRunning {
-                        Label("Uygulama açık – kaldırırken kapatılacak", systemImage: "exclamationmark.triangle")
+                        Label(L("Uygulama açık – kaldırırken kapatılacak"), systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.orange)
                     }
                     Spacer()
                     Button(role: .destructive) { confirm = true } label: {
-                        Text(model.working ? "Kaldırılıyor…" : "Kaldır · \(Fmt.bytes(model.selectedSize))").frame(minWidth: 130)
+                        Text(model.working ? L("Kaldırılıyor…") : L("Kaldır · %@", Fmt.bytes(model.selectedSize))).frame(minWidth: 130)
                     }
                     .controlSize(.large)
                     .keyboardShortcut(.defaultAction)
@@ -302,16 +302,16 @@ struct AppsView: View {
                 }
                 .padding()
             }
-            .confirmationDialog("\(app.name) için \(model.relatedSelection.count) öğe Çöp Kutusu'na taşınsın mı?",
+            .confirmationDialog(L("%@ için %d öğe Çöp Kutusu'na taşınsın mı?", app.name, model.relatedSelection.count),
                                 isPresented: $confirm) {
-                Button("Kaldır", role: .destructive) { model.removeSelected() }
+                Button(L("Kaldır"), role: .destructive) { model.removeSelected() }
             } message: {
-                Text("Çöp Kutusu'nu boşaltana kadar geri alabilirsin.")
+                Text(L("Çöp Kutusu'nu boşaltana kadar geri alabilirsin."))
             }
         } else {
             VStack(spacing: 8) {
                 Image(systemName: "trash.square").font(.system(size: 44)).foregroundStyle(.tertiary)
-                Text("Kaldırmak istediğin uygulamayı seç").foregroundStyle(.secondary)
+                Text(L("Kaldırmak istediğin uygulamayı seç")).foregroundStyle(.secondary)
                 if let m = model.message { Text(m).font(.callout).foregroundStyle(.secondary) }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -323,7 +323,7 @@ struct AppsView: View {
         let order = model.related.map(\.group).reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
         return List {
             ForEach(order, id: \.self) { g in
-                Section(g) {
+                Section(L(g)) {
                     ForEach(groups[g] ?? []) { f in
                         HStack(spacing: 8) {
                             Toggle("", isOn: Binding(

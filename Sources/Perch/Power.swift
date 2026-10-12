@@ -136,10 +136,10 @@ final class LidSleep: ObservableObject {
                 me.passwordless = installed
                 if on && finalState { me.enabledByUs = true }
                 if !ok {
-                    me.lastError = "İzin verilmedi"
+                    me.lastError = L("İzin verilmedi")
                 } else if finalState != on {
-                    me.lastError = rival.map { "\($0) ayarı geri değiştiriyor – onun kapak modunu kapat" }
-                        ?? "Ayar uygulanmadı, başka bir uygulama değiştiriyor olabilir"
+                    me.lastError = rival.map { L("%@ ayarı geri değiştiriyor – onun kapak modunu kapat", $0) }
+                        ?? L("Ayar uygulanmadı, başka bir uygulama değiştiriyor olabilir")
                 }
                 KeepAwake.shared.onChange?()
             }
@@ -165,7 +165,7 @@ final class LidSleep: ObservableObject {
         // First use (or broken rule): one admin prompt installs the scoped sudoers rule and
         // applies the change, so later toggles never ask again.
         return Shell.runAsAdmin(installRuleCommand() + "; /usr/bin/pmset -a disablesleep \(arg)",
-                                prompt: "Perch kapak modu için bir kerelik izin istiyor. Sonraki açıp kapatmalarda şifre sorulmayacak.")
+                                prompt: L("Perch kapak modu için bir kerelik izin istiyor. Sonraki açıp kapatmalarda şifre sorulmayacak."))
     }
 
     nonisolated private static func installRuleCommand() -> String {
@@ -177,7 +177,7 @@ final class LidSleep: ObservableObject {
     func installPasswordless() {
         let cmd = Self.installRuleCommand()
         Task.detached {
-            _ = Shell.runAsAdmin(cmd, prompt: "Perch, kapak modu için şifresiz pmset izni kurmak istiyor.")
+            _ = Shell.runAsAdmin(cmd, prompt: L("Perch, kapak modu için şifresiz pmset izni kurmak istiyor."))
             let exists = FileManager.default.fileExists(atPath: Self.sudoersPath)
             await MainActor.run { LidSleep.shared.passwordless = exists }
         }
@@ -185,7 +185,7 @@ final class LidSleep: ObservableObject {
 
     func removePasswordless() {
         Task.detached {
-            _ = Shell.runAsAdmin("/bin/rm -f \(Self.sudoersPath)", prompt: "Perch şifresiz pmset iznini kaldırmak istiyor.")
+            _ = Shell.runAsAdmin("/bin/rm -f \(Self.sudoersPath)", prompt: L("Perch şifresiz pmset iznini kaldırmak istiyor."))
             let exists = FileManager.default.fileExists(atPath: Self.sudoersPath)
             await MainActor.run { LidSleep.shared.passwordless = exists }
         }

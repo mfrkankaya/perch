@@ -106,7 +106,10 @@ enum DiskScanner {
 
 @MainActor
 final class DiskModel: ObservableObject {
-    enum Mode: String, CaseIterable { case folders = "Klasörler", files = "Büyük dosyalar" }
+    enum Mode: String, CaseIterable {
+        case folders = "Klasörler", files = "Büyük dosyalar"
+        var title: String { L(rawValue) }
+    }
 
     @Published var mode: Mode = .folders
     @Published var rootPath = FS.home
@@ -223,7 +226,7 @@ final class DiskModel: ObservableObject {
             let removed = Set(paths).subtracting(failedPaths)
             prune(removed)
             selection.removeAll()
-            message = res.failed.isEmpty ? "\(res.ok) öğe Çöp Kutusu'na taşındı." : "\(res.failed.count) öğe taşınamadı (izin yok)."
+            message = res.failed.isEmpty ? L("%d öğe Çöp Kutusu'na taşındı.", res.ok) : L("%d öğe taşınamadı (izin yok).", res.failed.count)
         }
     }
 
@@ -267,25 +270,25 @@ struct DiskView: View {
             footer
         }
         .onAppear { model.scanIfNeeded() }
-        .confirmationDialog("\(model.selection.count) öğe Çöp Kutusu'na taşınsın mı?", isPresented: $confirm) {
-            Button("Çöp Kutusu'na taşı", role: .destructive) { model.trashSelected() }
+        .confirmationDialog(L("%d öğe Çöp Kutusu'na taşınsın mı?", model.selection.count), isPresented: $confirm) {
+            Button(L("Çöp Kutusu'na taşı"), role: .destructive) { model.trashSelected() }
         }
     }
 
     private var header: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Büyük dosyalar").font(.title2.bold())
+                Text(L("Büyük dosyalar")).font(.title2.bold())
                 Text(model.rootPath.replacingOccurrences(of: FS.home, with: "~")).foregroundStyle(.secondary)
                     .lineLimit(1).truncationMode(.middle)
             }
             Spacer()
             Picker("", selection: $model.mode) {
-                ForEach(DiskModel.Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                ForEach(DiskModel.Mode.allCases, id: \.self) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented).labelsHidden().frame(width: 220)
-            Button { model.chooseRoot() } label: { Image(systemName: "folder") }.help("Başka bir klasör tara")
-            Button { model.scan() } label: { Image(systemName: "arrow.clockwise") }.help("Yeniden tara")
+            Button { model.chooseRoot() } label: { Image(systemName: "folder") }.help(L("Başka bir klasör tara"))
+            Button { model.scan() } label: { Image(systemName: "arrow.clockwise") }.help(L("Yeniden tara"))
                 .disabled(model.scanning)
         }
         .padding()
@@ -294,9 +297,9 @@ struct DiskView: View {
     private var scanningPlaceholder: some View {
         VStack(spacing: 10) {
             ProgressView()
-            Text("Taranıyor… \(model.scannedFiles.formatted()) dosya · \(Fmt.bytes(model.scannedBytes))")
+            Text(L("Taranıyor… %@ dosya · %@", model.scannedFiles.formatted(), Fmt.bytes(model.scannedBytes)))
                 .monospacedDigit().foregroundStyle(.secondary)
-            Button("Durdur") { model.cancel() }
+            Button(L("Durdur")) { model.cancel() }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -344,7 +347,7 @@ struct DiskView: View {
         .listStyle(.inset(alternatesRowBackgrounds: true))
         .overlay {
             if model.bigFiles.isEmpty && !model.scanning {
-                Text("100 MB üzerinde dosya yok").foregroundStyle(.secondary)
+                Text(L("100 MB üzerinde dosya yok")).foregroundStyle(.secondary)
             }
         }
     }
@@ -374,8 +377,8 @@ struct DiskView: View {
         }
         .padding(.vertical, 2)
         .contextMenu {
-            Button("Finder'da göster") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)]) }
-            Button("Yolu kopyala") {
+            Button(L("Finder'da göster")) { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)]) }
+            Button(L("Yolu kopyala")) {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(path, forType: .string)
             }
@@ -387,15 +390,15 @@ struct DiskView: View {
             if let m = model.message {
                 Text(m).foregroundStyle(.secondary)
             } else {
-                Text(model.mode == .folders ? "Çift tıkla: klasöre gir · sağ tık: Finder'da göster" : "≥ 100 MB dosyalar, büyükten küçüğe")
+                Text(model.mode == .folders ? L("Çift tıkla: klasöre gir · sağ tık: Finder'da göster") : L("≥ 100 MB dosyalar, büyükten küçüğe"))
                     .foregroundStyle(.secondary).font(.callout)
             }
             Spacer()
             if model.selection.count == 1, let p = model.selection.first {
-                Button("Finder'da göster") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: p)]) }
+                Button(L("Finder'da göster")) { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: p)]) }
             }
             Button(role: .destructive) { confirm = true } label: {
-                Label("Çöp Kutusu'na taşı", systemImage: "trash")
+                Label(L("Çöp Kutusu'na taşı"), systemImage: "trash")
             }
             .disabled(model.selection.isEmpty)
         }
@@ -407,10 +410,10 @@ struct FullDiskAccessBanner: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "lock.shield").foregroundStyle(.orange)
-            Text("Fotoğraflar, Mail ve uygulama kapsayıcıları gibi korumalı klasörler atlanıyor. Hepsini görmek için Perch'e Tam Disk Erişimi ver, sonra yeniden tara.")
+            Text(L("Fotoğraflar, Mail ve uygulama kapsayıcıları gibi korumalı klasörler atlanıyor. Hepsini görmek için Perch'e Tam Disk Erişimi ver, sonra yeniden tara."))
                 .font(.callout).foregroundStyle(.secondary)
             Spacer()
-            Button("Ayarları aç") {
+            Button(L("Ayarları aç")) {
                 NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")!)
             }
         }

@@ -191,7 +191,7 @@ final class ActivityModel: ObservableObject {
             .filter { $0.activationPolicy == .regular }
             .compactMap { $0.bundleURL?.path })
         var shown: [AppLoad] = []
-        var rest = AppLoad(id: "background", name: "Sistem ve arka plan", bundlePath: nil, cpu: 0, memory: 0, pids: [])
+        var rest = AppLoad(id: "background", name: L("Sistem ve arka plan"), bundlePath: nil, cpu: 0, memory: 0, pids: [])
         var restCount = 0
         for a in apps {
             if showBackground || (a.bundlePath.map(visible.contains) ?? false) {
@@ -204,7 +204,7 @@ final class ActivityModel: ObservableObject {
         }
         func row(_ a: AppLoad, cpu: Bool) -> Row {
             let isRest = a.id == "background"
-            let detail = isRest ? "\(restCount) işlem" : (a.pids.count > 1 ? "\(a.pids.count) işlem" : nil)
+            let detail = isRest ? L("%d işlem", restCount) : (a.pids.count > 1 ? L("%d işlem", a.pids.count) : nil)
             let share = cpu ? a.cpu / 100 / cores : Double(a.memory) / Double(max(system.memTotal, 1))
             let value = cpu ? Self.percent(share) : Fmt.bytes(a.memory)
             return Row(id: a.id, name: a.name, bundlePath: a.bundlePath, detail: detail, share: share,
@@ -230,23 +230,23 @@ final class ActivityModel: ObservableObject {
         let topMem = memRows.first { $0.quittable }
         let topCPU = cpuRows.first { $0.quittable }
         if system.pressure >= 4, let m = topMem {
-            return ("exclamationmark.octagon.fill", .red, "Bellek dolmak üzere",
-                    "En çok \(m.name) kullanıyor (\(m.value)). Kapatırsan Mac hemen rahatlar.")
+            return ("exclamationmark.octagon.fill", .red, L("Bellek dolmak üzere"),
+                    L("En çok %@ kullanıyor (%@). Kapatırsan Mac hemen rahatlar.", m.name, m.value))
         }
         if system.pressure >= 2, let m = topMem {
-            return ("exclamationmark.triangle.fill", .orange, "Bellek zorlanıyor",
-                    "Mac yavaşlayabilir. En büyük pay \(m.name) uygulamasında (\(m.value)).")
+            return ("exclamationmark.triangle.fill", .orange, L("Bellek zorlanıyor"),
+                    L("Mac yavaşlayabilir. En büyük pay %@ uygulamasında (%@).", m.name, m.value))
         }
         if cpuShare >= 0.7, let c = topCPU {
-            return ("flame.fill", .orange, "İşlemci çok yoğun",
-                    "\(c.name) işlemcinin \(c.value) kadarını kullanıyor. Pil ve ısınma için kapatmayı düşünebilirsin.")
+            return ("flame.fill", .orange, L("İşlemci çok yoğun"),
+                    L("%@ işlemcinin %@ kadarını kullanıyor. Pil ve ısınma için kapatmayı düşünebilirsin.", c.name, c.value))
         }
         if cpuShare >= 0.4, let c = topCPU {
-            return ("gauge.with.dots.needle.50percent", .yellow, "Mac biraz meşgul",
-                    "Şu an en çok \(c.name) çalışıyor (\(c.value)). Endişelenecek bir durum yok.")
+            return ("gauge.with.dots.needle.50percent", .yellow, L("Mac biraz meşgul"),
+                    L("Şu an en çok %@ çalışıyor (%@). Endişelenecek bir durum yok.", c.name, c.value))
         }
-        return ("checkmark.seal.fill", .green, "Her şey yolunda",
-                "Mac rahat çalışıyor. İşlemci \(Self.percent(cpuShare)), bellek \(Fmt.bytes(system.memUsed)) / \(Fmt.bytes(system.memTotal)).")
+        return ("checkmark.seal.fill", .green, L("Her şey yolunda"),
+                L("Mac rahat çalışıyor. İşlemci %@, bellek %@ / %@.", Self.percent(cpuShare), Fmt.bytes(system.memUsed), Fmt.bytes(system.memTotal)))
     }
 
     func quit(_ row: Row, force: Bool) {
@@ -269,20 +269,20 @@ struct ActivityView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Etkinlik").font(.title2.bold())
-                    Text("Mac'i şu an en çok ne yoruyor?").foregroundStyle(.secondary)
+                    Text(L("Etkinlik")).font(.title2.bold())
+                    Text(L("Mac'i şu an en çok ne yoruyor?")).foregroundStyle(.secondary)
                 }
                 if model.ready {
                     verdictCard
                     HStack(alignment: .top, spacing: 14) {
-                        column(title: "İşlemci", subtitle: "Mac'in tamamına göre", icon: "cpu",
+                        column(title: L("İşlemci"), subtitle: L("Mac'in tamamına göre"), icon: "cpu",
                                total: ActivityModel.percent(model.cpuShare), totalShare: model.cpuShare,
                                color: .blue, rows: model.cpuRows)
-                        column(title: "Bellek", subtitle: "Toplam \(Fmt.bytes(model.system.memTotal))", icon: "memorychip",
+                        column(title: L("Bellek"), subtitle: L("Toplam %@", Fmt.bytes(model.system.memTotal)), icon: "memorychip",
                                total: Fmt.bytes(model.system.memUsed), totalShare: model.memShare,
                                color: .purple, rows: model.memRows)
                     }
-                    Toggle("Sistem ve arka plan işlemlerini tek tek göster", isOn: $model.showBackground)
+                    Toggle(L("Sistem ve arka plan işlemlerini tek tek göster"), isOn: $model.showBackground)
                         .toggleStyle(.checkbox)
                         .foregroundStyle(.secondary)
                 } else {
@@ -293,11 +293,11 @@ struct ActivityView: View {
         }
         .onAppear { model.start() }
         .onDisappear { model.stop() }
-        .confirmationDialog("\(confirmForce?.name ?? "") yanıt vermiyor mu? Zorla kapatılsın mı?", isPresented: Binding(
+        .confirmationDialog(L("%@ yanıt vermiyor mu? Zorla kapatılsın mı?", confirmForce?.name ?? ""), isPresented: Binding(
             get: { confirmForce != nil }, set: { if !$0 { confirmForce = nil } })) {
-            Button("Zorla kapat", role: .destructive) { if let r = confirmForce { model.quit(r, force: true) } }
+            Button(L("Zorla kapat"), role: .destructive) { if let r = confirmForce { model.quit(r, force: true) } }
         } message: {
-            Text("Kaydedilmemiş değişiklikler kaybolur.")
+            Text(L("Kaydedilmemiş değişiklikler kaybolur."))
         }
     }
 
@@ -325,7 +325,7 @@ struct ActivityView: View {
                 Text(total).font(.title3.weight(.semibold)).monospacedDigit()
             }
             Bar(share: totalShare, color: color, height: 8)
-            Text("\(subtitle) · en çok kullananlar").font(.caption).foregroundStyle(.secondary)
+            Text(L("%@ · en çok kullananlar", subtitle)).font(.caption).foregroundStyle(.secondary)
             Divider()
             let maxShare = max(rows.map(\.share).max() ?? 0, 0.0001)
             VStack(spacing: 4) {
@@ -383,13 +383,13 @@ private struct ActivityRow: View {
         .overlay(alignment: .topTrailing) {
             if row.quittable && hover {
                 Button(action: onQuit) {
-                    Text("Kapat").font(.caption.weight(.semibold))
+                    Text(L("Kapat")).font(.caption.weight(.semibold))
                         .padding(.horizontal, 9).padding(.vertical, 3)
                         .background(Capsule().fill(.regularMaterial))
                         .overlay(Capsule().strokeBorder(Color.primary.opacity(0.15)))
                 }
                 .buttonStyle(.plain)
-                .help("Uygulamadan çık")
+                .help(L("Uygulamadan çık"))
             }
         }
         .padding(.vertical, 5).padding(.horizontal, 6)
@@ -397,11 +397,11 @@ private struct ActivityRow: View {
         .onHover { hover = $0 }
         .contextMenu {
             if row.quittable {
-                Button("Kapat", action: onQuit)
-                Button("Zorla kapat…", action: onForceQuit)
+                Button(L("Kapat"), action: onQuit)
+                Button(L("Zorla kapat…"), action: onForceQuit)
             }
             if let path = row.bundlePath {
-                Button("Finder'da göster") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)]) }
+                Button(L("Finder'da göster")) { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)]) }
             }
         }
     }
