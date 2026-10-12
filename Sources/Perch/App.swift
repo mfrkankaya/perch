@@ -80,9 +80,11 @@ final class StatusController: NSObject, NSPopoverDelegate {
         }
         guard let button = item.button else { return }
         // Build the SwiftUI tree only while visible; dropped again on close.
-        let host = NSHostingController(rootView: MenuView(close: { [weak self] in self?.close() }))
+        let host = FirstMouseHostingController(rootView: MenuView(close: { [weak self] in self?.close() }))
         host.sizingOptions = .preferredContentSize
         popover.contentViewController = host
+        // Activate first so the very first click lands on the control instead of focusing the popover.
+        NSApp.activate()
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
         UsageStore.shared.refreshIfStale()
@@ -93,5 +95,12 @@ final class StatusController: NSObject, NSPopoverDelegate {
 
     func popoverDidClose(_ notification: Notification) {
         popover.contentViewController = nil
+    }
+}
+
+/// Hosting controller whose view accepts the click that also activates its window.
+final class FirstMouseHostingController<Content: View>: NSHostingController<Content> {
+    override func loadView() {
+        view = FirstMouseHostingView(rootView: rootView)
     }
 }
