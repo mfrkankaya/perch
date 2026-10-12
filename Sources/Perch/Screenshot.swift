@@ -129,7 +129,8 @@ final class Screenshotter {
         guard !capturing else { return }
         if !CGPreflightScreenCaptureAccess() { CGRequestScreenCaptureAccess() }
         capturing = true
-        // Keep the stack out of the shot; give the window server a beat to apply it.
+        // Keep the stack out of the shot: fade it out first, then start capturing.
+        let startDelay = shelf.items.isEmpty ? 0.0 : 0.16
         shelf.conceal(true)
         let url = dir.appendingPathComponent("Perch \(Self.nameFormatter.string(from: Date())).png")
         var args = ["-x"]
@@ -152,7 +153,7 @@ final class Screenshotter {
                 }
             }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + startDelay) {
             do { try p.run() } catch {
                 self.capturing = false
                 self.shelf.conceal(false)
@@ -189,46 +190,49 @@ struct ShotItem: Identifiable, Equatable {
 final class Shelf: ObservableObject {
     @Published private(set) var items: [ShotItem] = []
     var hovered: UUID?
+    /// Where the cards currently are (panel-local, top-left origin) – the only clickable area.
+    var contentRect: CGRect = .zero
     private var panel: NSPanel?
-    private var settleWork: DispatchWorkItem?
+    private var monitors: [Any] = []
+    private var hideWork: DispatchWorkItem?
     private let maxItems = 8
     static let cardWidth: CGFloat = 220
-    static let inAnimation = Animation.spring(response: 0.45, dampingFraction: 0.78)
-    static let outAnimation = Animation.easeIn(duration: 0.22)
+    static let layoutAnimation = Animation.spring(response: 0.42, dampingFraction: 0.82)
 
     func add(_ url: URL) {
         guard let thumb = Self.thumbnail(url) else { return }
         let item = ShotItem(url: url, thumbnail: thumb)
         showPanel()
-        withAnimation(Self.inAnimation) {
+        withAnimation(Self.layoutAnimation) {
             items.append(item)
             while items.count > maxItems {
                 let old = items.removeFirst()
                 try? FileManager.default.removeItem(at: old.url)
             }
         }
-        settle(after: 0.6)
         scheduleAutoClose(item.id)
     }
 
     func remove(_ item: ShotItem) {
-        expand()
-        withAnimation(Self.outAnimation) { items.removeAll { $0.id == item.id } }
+        withAnimation(Self.layoutAnimation) { items.removeAll { $0.id == item.id } }
         try? FileManager.default.removeItem(at: item.url)
-        settle(after: 0.3)
+        hideIfEmpty()
     }
 
     func clear() {
-        expand()
         let old = items
-        withAnimation(Self.outAnimation) { items.removeAll() }
+        withAnimation(Self.layoutAnimation) { items.removeAll() }
         old.forEach { try? FileManager.default.removeItem(at: $0.url) }
-        settle(after: 0.3)
+        hideIfEmpty()
     }
 
-    /// Hidden (not removed) while a screenshot is being taken.
-    func conceal(_ hidden: Bool) {
-        panel?.alphaValue = hidden ? 0 : 1
+    /// Faded out (not removed) while a screenshot is being taken.
+    func conceal(_ hidden: Bool, completion: (() -> Void)? = nil) {
+        guard let panel else { completion?(); return }
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = hidden ? 0.12 : 0.2
+            panel.animator().alphaValue = hidden ? 0 : 1
+        }, completionHandler: { completion?() })
     }
 
     @discardableResult
@@ -276,9 +280,18 @@ final class Shelf: ObservableObject {
         return NSImage(cgImage: cg, size: NSSize(width: cg.width / 2, height: cg.height / 2))
     }
 
+    // MARK: Panel
+
+    /// A fixed, full-height transparent strip on the left edge. It never resizes (resizing
+    /// is what made cards slide down from the top); cards stack from the bottom inside it.
     private func showPanel() {
+        hideWork?.cancel()
+        let mouse = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
+        let vf = screen?.visibleFrame ?? .zero
+        let frame = NSRect(x: vf.minX + 4, y: vf.minY + 4, width: Self.cardWidth + 28, height: vf.height - 8)
         if panel == nil {
-            let p = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
+            let p = NSPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
             p.isFloatingPanel = true
             p.level = .statusBar
             p.backgroundColor = .clear
@@ -287,47 +300,50 @@ final class Shelf: ObservableObject {
             p.hidesOnDeactivate = false
             p.becomesKeyOnlyIfNeeded = true
             p.acceptsMouseMovedEvents = true
+            p.ignoresMouseEvents = true
             p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
             p.contentView = FirstMouseHostingView(rootView: ShelfView(shelf: self))
             panel = p
+            startTrackingMouse()
+        } else if panel?.frame != frame {
+            panel?.setFrame(frame, display: true)
         }
-        expand()
         panel?.orderFrontRegardless()
     }
 
-    private var screenFrame: NSRect {
-        let mouse = NSEvent.mouseLocation
-        let screen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
-        return screen?.visibleFrame ?? .zero
-    }
-
-    /// Cards animate inside the panel, so it is made tall while something moves and
-    /// shrunk to fit afterwards (a tall transparent panel would block clicks behind it).
-    private func expand() {
-        settleWork?.cancel()
-        guard let panel else { return }
-        let vf = screenFrame
-        panel.setFrame(NSRect(x: vf.minX + 4, y: vf.minY + 4, width: Self.cardWidth + 28, height: vf.height - 8), display: true)
-    }
-
-    private func settle(after delay: Double) {
-        settleWork?.cancel()
+    private func hideIfEmpty() {
+        guard items.isEmpty else { return }
+        // Let the last card finish sliding out first.
         let work = DispatchWorkItem { [weak self] in
-            guard let self, let panel = self.panel, let view = panel.contentView else { return }
-            if self.items.isEmpty { self.hidePanel(); return }
-            view.layoutSubtreeIfNeeded()
-            let h = view.fittingSize.height
-            let vf = self.screenFrame
-            panel.setFrame(NSRect(x: vf.minX + 4, y: vf.minY + 4, width: Self.cardWidth + 28, height: min(h, vf.height - 8)), display: true)
+            guard let self, self.items.isEmpty else { return }
+            self.stopTrackingMouse()
+            self.panel?.orderOut(nil)
+            self.panel?.contentView = nil
+            self.panel = nil
         }
-        settleWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+        hideWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
     }
 
-    private func hidePanel() {
-        panel?.orderOut(nil)
-        panel?.contentView = nil
-        panel = nil
+    /// Clicks only belong to the panel while the pointer is over the cards; everywhere else
+    /// in the strip they go straight through to whatever is behind it.
+    private func startTrackingMouse() {
+        let update: () -> Void = { [weak self] in
+            guard let self, let panel = self.panel else { return }
+            let r = self.contentRect
+            let screenRect = NSRect(x: panel.frame.minX + r.minX, y: panel.frame.maxY - r.maxY,
+                                    width: r.width, height: r.height)
+            let inside = !r.isEmpty && screenRect.contains(NSEvent.mouseLocation)
+            if panel.ignoresMouseEvents == inside { panel.ignoresMouseEvents = !inside }
+        }
+        let mask: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDragged]
+        monitors.append(NSEvent.addGlobalMonitorForEvents(matching: mask) { _ in update() } as Any)
+        monitors.append(NSEvent.addLocalMonitorForEvents(matching: mask) { e in update(); return e } as Any)
+    }
+
+    private func stopTrackingMouse() {
+        monitors.forEach { NSEvent.removeMonitor($0) }
+        monitors.removeAll()
     }
 }
 
@@ -343,22 +359,20 @@ struct ShelfView: View {
             if shelf.items.count > 1 {
                 Button { shelf.clear() } label: { Label(L("Tümünü kapat"), systemImage: "xmark") }
                     .buttonStyle(DuskButton(kind: .secondary))
-                    .environment(\.colorScheme, .dark)
                     .background(Capsule().fill(Dusk.night.opacity(0.85)))
-                    .transition(.opacity.combined(with: .move(edge: .leading)))
+                    .environment(\.colorScheme, .dark)
+                    .transition(.opacity)
             }
             ForEach(shelf.items) { item in
                 ShotCard(item: item, shelf: shelf)
                     .transition(.asymmetric(
-                        insertion: .move(edge: .leading)
-                            .combined(with: .opacity)
-                            .combined(with: .scale(scale: 0.85, anchor: .bottomLeading)),
+                        insertion: .move(edge: .bottom).combined(with: .opacity),
                         removal: .move(edge: .leading).combined(with: .opacity)
                     ))
             }
         }
         .padding(14)
-        .fixedSize()
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { shelf.contentRect = $0 }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
     }
 }
