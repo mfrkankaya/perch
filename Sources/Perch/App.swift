@@ -85,11 +85,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+/// Borderless panel that can take key focus (for Esc) without activating the app.
+final class MenuPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+}
+
+/// Menu bar item + a custom floating panel (instead of NSPopover, so the whole surface is ours).
 @MainActor
-final class StatusController: NSObject, NSPopoverDelegate {
+final class StatusController: NSObject, NSWindowDelegate {
     private var item: NSStatusItem!
-    private let popover = NSPopover()
-    private var outsideClickMonitor: Any?
+    private var panel: MenuPanel?
+    private var monitors: [Any] = []
+    private var lastClose = Date.distantPast
 
     func install() {
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -97,11 +104,6 @@ final class StatusController: NSObject, NSPopoverDelegate {
         item.button?.action = #selector(toggle(_:))
         item.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
         item.button?.imagePosition = .imageLeading
-        // Closed manually on outside clicks: `.transient` also closes as soon as the app activates,
-        // which made the menu vanish (or need a second click) when a Perch window was open.
-        popover.behavior = .applicationDefined
-        popover.animates = false
-        popover.delegate = self
         refreshButton()
     }
 
@@ -120,35 +122,76 @@ final class StatusController: NSObject, NSPopoverDelegate {
     }
 
     @objc private func toggle(_ sender: Any?) {
-        if popover.isShown {
-            popover.performClose(sender)
-            return
+        if panel != nil { close(); return }
+        // The click on the icon itself already closed the panel (resign key) – don't reopen.
+        if Date().timeIntervalSince(lastClose) < 0.3 { return }
+        open()
+    }
+
+    private func open() {
+        guard let button = item.button, let buttonWindow = button.window else { return }
+        let p = MenuPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
+        p.isFloatingPanel = true
+        p.level = .popUpMenu
+        p.backgroundColor = .clear
+        p.isOpaque = false
+        p.hasShadow = true
+        p.hidesOnDeactivate = false
+        p.appearance = Dusk.darkAppearance
+        p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
+        p.delegate = self
+
+        let anchor = buttonWindow.frame
+        let host = FirstMouseHostingView(rootView: MenuView(
+            close: { [weak self] in self?.close() },
+            onSize: { [weak self] size in self?.resize(to: size, anchor: anchor) }
+        ))
+        p.contentView = host
+        panel = p
+        resize(to: host.fittingSize, anchor: anchor)
+
+        p.alphaValue = 0
+        p.makeKeyAndOrderFront(nil)
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.12
+            p.animator().alphaValue = 1
         }
-        guard let button = item.button else { return }
-        // Build the SwiftUI tree only while visible; dropped again on close.
-        let host = FirstMouseHostingController(rootView: MenuView(close: { [weak self] in self?.close() }))
-        host.sizingOptions = .preferredContentSize
-        popover.contentViewController = host
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+
+        monitors.append(NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             self?.close()
-        }
+        } as Any)
+        monitors.append(NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] e in
+            if e.keyCode == 53 { self?.close(); return nil } // esc
+            return e
+        } as Any)
         UsageStore.shared.refreshIfStale()
         LidSleep.shared.refresh()
     }
 
-    func close() { popover.performClose(nil) }
-
-    func popoverDidClose(_ notification: Notification) {
-        if let m = outsideClickMonitor { NSEvent.removeMonitor(m) }
-        outsideClickMonitor = nil
-        popover.contentViewController = nil
+    /// Keeps the panel hanging from the menu bar icon, clamped to the screen.
+    private func resize(to size: CGSize, anchor: NSRect) {
+        guard let panel, size.width > 0, size.height > 0 else { return }
+        let screen = NSScreen.screens.first { $0.frame.intersects(anchor) } ?? NSScreen.main
+        let vf = screen?.visibleFrame ?? .zero
+        var x = anchor.midX - size.width / 2
+        x = min(max(x, vf.minX + 8), vf.maxX - size.width - 8)
+        let top = anchor.minY - 6
+        panel.setFrame(NSRect(x: x, y: top - size.height, width: size.width, height: size.height), display: true)
+        panel.invalidateShadow()
     }
-}
 
-/// Hosting controller whose view accepts the click that also activates its window.
-final class FirstMouseHostingController<Content: View>: NSHostingController<Content> {
-    override func loadView() {
-        view = FirstMouseHostingView(rootView: rootView)
+    func close() {
+        guard let p = panel else { return }
+        panel = nil
+        lastClose = Date()
+        monitors.forEach { NSEvent.removeMonitor($0) }
+        monitors.removeAll()
+        p.delegate = nil
+        p.orderOut(nil)
+        p.contentView = nil
+    }
+
+    func windowDidResignKey(_ notification: Notification) {
+        close()
     }
 }

@@ -1,6 +1,6 @@
 # Perch
 
-A small native macOS menu bar utility (Swift + SwiftUI, no dependencies) for personal use.
+A small native macOS menu bar utility (Swift + SwiftUI, no dependencies) for personal use, with its own "Dusk" look (night-indigo surfaces, amber accents, rounded type) instead of stock AppKit controls.
 
 | Feature | Where |
 |---|---|

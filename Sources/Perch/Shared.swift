@@ -182,12 +182,6 @@ enum FS {
     }
 }
 
-extension View {
-    func card() -> some View {
-        self.padding(12)
-            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.primary.opacity(0.05)))
-    }
-}
 
 
 extension Set {

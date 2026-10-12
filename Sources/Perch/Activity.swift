@@ -230,22 +230,22 @@ final class ActivityModel: ObservableObject {
         let topMem = memRows.first { $0.quittable }
         let topCPU = cpuRows.first { $0.quittable }
         if system.pressure >= 4, let m = topMem {
-            return ("exclamationmark.octagon.fill", .red, L("Bellek dolmak üzere"),
+            return ("exclamationmark.octagon.fill", Dusk.coral, L("Bellek dolmak üzere"),
                     L("En çok %@ kullanıyor (%@). Kapatırsan Mac hemen rahatlar.", m.name, m.value))
         }
         if system.pressure >= 2, let m = topMem {
-            return ("exclamationmark.triangle.fill", .orange, L("Bellek zorlanıyor"),
+            return ("exclamationmark.triangle.fill", Dusk.orange, L("Bellek zorlanıyor"),
                     L("Mac yavaşlayabilir. En büyük pay %@ uygulamasında (%@).", m.name, m.value))
         }
         if cpuShare >= 0.7, let c = topCPU {
-            return ("flame.fill", .orange, L("İşlemci çok yoğun"),
+            return ("flame.fill", Dusk.orange, L("İşlemci çok yoğun"),
                     L("%@ işlemcinin %@ kadarını kullanıyor. Pil ve ısınma için kapatmayı düşünebilirsin.", c.name, c.value))
         }
         if cpuShare >= 0.4, let c = topCPU {
-            return ("gauge.with.dots.needle.50percent", .yellow, L("Mac biraz meşgul"),
+            return ("gauge.with.dots.needle.50percent", Dusk.amber, L("Mac biraz meşgul"),
                     L("Şu an en çok %@ çalışıyor (%@). Endişelenecek bir durum yok.", c.name, c.value))
         }
-        return ("checkmark.seal.fill", .green, L("Her şey yolunda"),
+        return ("checkmark.seal.fill", Dusk.green, L("Her şey yolunda"),
                 L("Mac rahat çalışıyor. İşlemci %@, bellek %@ / %@.", Self.percent(cpuShare), Fmt.bytes(system.memUsed), Fmt.bytes(system.memTotal)))
     }
 
@@ -258,160 +258,5 @@ final class ActivityModel: ObservableObject {
             }
         }
         row.pids.forEach { kill($0, force ? SIGKILL : SIGTERM) }
-    }
-}
-
-struct ActivityView: View {
-    @ObservedObject var model: ActivityModel
-    @State private var confirmForce: ActivityModel.Row?
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L("Etkinlik")).font(.title2.bold())
-                    Text(L("Mac'i şu an en çok ne yoruyor?")).foregroundStyle(.secondary)
-                }
-                if model.ready {
-                    verdictCard
-                    HStack(alignment: .top, spacing: 14) {
-                        column(title: L("İşlemci"), subtitle: L("Mac'in tamamına göre"), icon: "cpu",
-                               total: ActivityModel.percent(model.cpuShare), totalShare: model.cpuShare,
-                               color: .blue, rows: model.cpuRows)
-                        column(title: L("Bellek"), subtitle: L("Toplam %@", Fmt.bytes(model.system.memTotal)), icon: "memorychip",
-                               total: Fmt.bytes(model.system.memUsed), totalShare: model.memShare,
-                               color: .purple, rows: model.memRows)
-                    }
-                    Toggle(L("Sistem ve arka plan işlemlerini tek tek göster"), isOn: $model.showBackground)
-                        .toggleStyle(.checkbox)
-                        .foregroundStyle(.secondary)
-                } else {
-                    ProgressView().frame(maxWidth: .infinity, minHeight: 300)
-                }
-            }
-            .padding(20)
-        }
-        .onAppear { model.start() }
-        .onDisappear { model.stop() }
-        .confirmationDialog(L("%@ yanıt vermiyor mu? Zorla kapatılsın mı?", confirmForce?.name ?? ""), isPresented: Binding(
-            get: { confirmForce != nil }, set: { if !$0 { confirmForce = nil } })) {
-            Button(L("Zorla kapat"), role: .destructive) { if let r = confirmForce { model.quit(r, force: true) } }
-        } message: {
-            Text(L("Kaydedilmemiş değişiklikler kaybolur."))
-        }
-    }
-
-    private var verdictCard: some View {
-        let v = model.verdict
-        return HStack(spacing: 14) {
-            Image(systemName: v.icon).font(.system(size: 28)).foregroundStyle(v.color)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(v.title).font(.headline)
-                Text(v.detail).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer()
-        }
-        .padding(16)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(v.color.opacity(0.1)))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(v.color.opacity(0.25)))
-    }
-
-    private func column(title: String, subtitle: String, icon: String, total: String, totalShare: Double,
-                        color: Color, rows: [ActivityModel.Row]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                Label(title, systemImage: icon).font(.headline)
-                Spacer()
-                Text(total).font(.title3.weight(.semibold)).monospacedDigit()
-            }
-            Bar(share: totalShare, color: color, height: 8)
-            Text(L("%@ · en çok kullananlar", subtitle)).font(.caption).foregroundStyle(.secondary)
-            Divider()
-            let maxShare = max(rows.map(\.share).max() ?? 0, 0.0001)
-            VStack(spacing: 4) {
-                ForEach(rows) { r in
-                    ActivityRow(row: r, color: color, scale: maxShare,
-                                onQuit: { model.quit(r, force: false) },
-                                onForceQuit: { confirmForce = r })
-                }
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.primary.opacity(0.04)))
-    }
-}
-
-private struct Bar: View {
-    let share: Double
-    let color: Color
-    var height: CGFloat = 5
-
-    var body: some View {
-        GeometryReader { g in
-            Capsule().fill(Color.primary.opacity(0.08))
-                .overlay(alignment: .leading) {
-                    Capsule().fill(color).frame(width: max(height, g.size.width * min(1, max(0, share))))
-                }
-        }
-        .frame(height: height)
-    }
-}
-
-private struct ActivityRow: View {
-    let row: ActivityModel.Row
-    let color: Color
-    /// Bars are relative to the biggest row so differences are visible.
-    let scale: Double
-    let onQuit: () -> Void
-    let onForceQuit: () -> Void
-    @State private var hover = false
-
-    var body: some View {
-        HStack(spacing: 10) {
-            icon.frame(width: 26, height: 26)
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(row.name).lineLimit(1)
-                    if let d = row.detail { Text(d).font(.caption2).foregroundStyle(.tertiary) }
-                    Spacer(minLength: 6)
-                    Text(row.value).monospacedDigit().fontWeight(.medium)
-                }
-                Bar(share: row.share / scale, color: row.quittable ? color : .secondary)
-            }
-        }
-        .overlay(alignment: .topTrailing) {
-            if row.quittable && hover {
-                Button(action: onQuit) {
-                    Text(L("Kapat")).font(.caption.weight(.semibold))
-                        .padding(.horizontal, 9).padding(.vertical, 3)
-                        .background(Capsule().fill(.regularMaterial))
-                        .overlay(Capsule().strokeBorder(Color.primary.opacity(0.15)))
-                }
-                .buttonStyle(.plain)
-                .help(L("Uygulamadan çık"))
-            }
-        }
-        .padding(.vertical, 5).padding(.horizontal, 6)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(hover ? 0.05 : 0)))
-        .onHover { hover = $0 }
-        .contextMenu {
-            if row.quittable {
-                Button(L("Kapat"), action: onQuit)
-                Button(L("Zorla kapat…"), action: onForceQuit)
-            }
-            if let path = row.bundlePath {
-                Button(L("Finder'da göster")) { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)]) }
-            }
-        }
-    }
-
-    @ViewBuilder private var icon: some View {
-        if let path = row.bundlePath {
-            AppIconView(path: path, size: 26)
-        } else {
-            Image(systemName: row.quittable ? "terminal" : "gearshape.2.fill")
-                .font(.system(size: 15)).foregroundStyle(.secondary)
-        }
     }
 }

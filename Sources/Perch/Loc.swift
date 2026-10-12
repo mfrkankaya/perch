@@ -162,6 +162,15 @@ extension Loc {
         "Her şey yolunda": "All good",
         "Mac rahat çalışıyor. İşlemci %@, bellek %@ / %@.": "Your Mac is running comfortably. CPU %@, memory %@ / %@.",
 
+        // Dusk redesign
+        "Mac'in için küçük yardımcı": "A little helper for your Mac",
+        "temizlenebilir alan bulundu": "of space you can free up",
+        "Taranıyor…": "Scanning…",
+        "%d öğe seçildi": "%d selected",
+        "Seçimi temizle": "Clear selection",
+        "Uygulamayı ve geride bıraktığı her şeyi sil": "Remove an app and everything it leaves behind",
+        "Canlı": "Live",
+        "en çok kullananlar": "top users",
         // Settings
         "Genel": "General", "Dil": "Language", "Sistem": "System",
         "Girişte otomatik başlat": "Launch at login",

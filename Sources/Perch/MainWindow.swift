@@ -3,7 +3,7 @@ import ServiceManagement
 import SwiftUI
 
 enum MainTab: String, CaseIterable, Identifiable {
-    case cleanup, disk, apps, activity, settings
+    case activity, cleanup, disk, apps, settings
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -17,10 +17,19 @@ enum MainTab: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .cleanup: "sparkles"
-        case .disk: "chart.bar.doc.horizontal"
-        case .apps: "trash.square"
-        case .activity: "gauge.with.dots.needle.67percent"
+        case .disk: "square.stack.3d.up.fill"
+        case .apps: "xmark.bin.fill"
+        case .activity: "waveform.path.ecg"
         case .settings: "gearshape"
+        }
+    }
+    var tint: Color {
+        switch self {
+        case .cleanup: Dusk.amber
+        case .disk: Dusk.violet
+        case .apps: Dusk.coral
+        case .activity: Dusk.teal
+        case .settings: Dusk.text2
         }
     }
 }
@@ -46,18 +55,21 @@ final class MainWindowController: NSObject, NSWindowDelegate {
         if window == nil {
             let m = WindowModels()
             models = m
-            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 920, height: 620),
+            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: 660),
                              styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                              backing: .buffered, defer: false)
             w.title = "Perch"
             w.titlebarAppearsTransparent = true
             w.titleVisibility = .hidden
+            w.appearance = Dusk.darkAppearance
+            w.backgroundColor = NSColor(Dusk.night)
+            w.isMovableByWindowBackground = true
             w.isReleasedWhenClosed = false
-            w.minSize = NSSize(width: 760, height: 480)
+            w.minSize = NSSize(width: 820, height: 540)
             w.contentViewController = NSHostingController(rootView: MainView(models: m))
-            w.setContentSize(NSSize(width: 920, height: 620))
+            w.setContentSize(NSSize(width: 980, height: 660))
             w.center()
-            w.setFrameAutosaveName("PerchMain")
+            w.setFrameAutosaveName("PerchMain2")
             w.delegate = self
             window = w
         }
@@ -100,198 +112,90 @@ struct MainView: View {
     @ObservedObject var models: WindowModels
 
     var body: some View {
-        NavigationSplitView {
-            List(MainTab.allCases, selection: $models.tab) { t in
-                Label(t.title, systemImage: t.icon).tag(t)
+        HStack(spacing: 0) {
+            Sidebar(selection: $models.tab)
+            Rectangle().fill(Dusk.stroke).frame(width: 1)
+            Group {
+                switch models.tab ?? .cleanup {
+                case .cleanup: CleanerView(model: models.cleaner)
+                case .disk: DiskView(model: models.disk)
+                case .apps: AppsView(model: models.apps)
+                case .activity: ActivityView(model: models.activity)
+                case .settings: SettingsView()
+                }
             }
-            .navigationSplitViewColumnWidth(min: 170, ideal: 190, max: 230)
-        } detail: {
-            switch models.tab ?? .cleanup {
-            case .cleanup: CleanerView(model: models.cleaner)
-            case .disk: DiskView(model: models.disk)
-            case .apps: AppsView(model: models.apps)
-            case .activity: ActivityView(model: models.activity)
-            case .settings: SettingsView()
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(minWidth: 760, minHeight: 480)
+        .background(DuskBackground())
+        .foregroundStyle(Dusk.text)
+        .environment(\.colorScheme, .dark)
+        .frame(minWidth: 820, minHeight: 540)
     }
 }
 
-// MARK: - Settings
-
-struct SettingsView: View {
-    @AppStorage(Keys.copyOnCapture) private var copyOnCapture = true
-    @AppStorage(Keys.saveFolder) private var saveFolder = FS.home + "/Desktop"
-    @AppStorage(Keys.shelfAutoClose) private var shelfAutoClose = 0
-    @AppStorage(Keys.showClaudeInMenuBar) private var showClaude = false
-    @AppStorage(Keys.keepDisplayOn) private var keepDisplayOn = true
-    @ObservedObject private var lid = LidSleep.shared
-    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
-    @State private var screenAccess = CGPreflightScreenCaptureAccess()
-    @State private var language = Loc.choice
+private struct Sidebar: View {
+    @Binding var selection: MainTab?
+    @ObservedObject private var awake = KeepAwake.shared
 
     var body: some View {
-        Form {
-            Section(L("Genel")) {
-                Picker(L("Dil"), selection: $language) {
-                    Text(L("Sistem")).tag(Loc.Choice.system)
-                    Text("Türkçe").tag(Loc.Choice.tr)
-                    Text("English").tag(Loc.Choice.en)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 10) {
+                Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 34, height: 34)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Perch").font(Dusk.title(19))
+                    Text(L("Mac'in için küçük yardımcı")).font(Dusk.caption).foregroundStyle(Dusk.text3)
+                        .lineLimit(1).minimumScaleFactor(0.75)
                 }
-                .onChange(of: language) { _, c in
-                    Loc.set(c)
-                    NSApp.mainMenu = AppDelegate.makeMainMenu()
-                    UsageStore.shared.refresh()
-                    DispatchQueue.main.async { MainWindowController.shared.reloadContent() }
-                }
-                Toggle(L("Girişte otomatik başlat"), isOn: $launchAtLogin)
-                    .onChange(of: launchAtLogin) { _, on in
-                        do {
-                            if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
-                        } catch {
-                            launchAtLogin = SMAppService.mainApp.status == .enabled
-                        }
-                    }
-                LabeledContent(L("Tam Disk Erişimi")) {
-                    if FS.hasFullDiskAccess {
-                        Label(L("Verildi"), systemImage: "checkmark.circle.fill").foregroundStyle(.green)
-                    } else {
-                        Button(L("Sistem Ayarları'nı aç")) {
-                            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")!)
-                        }
-                    }
-                }
-                Toggle(L("Menü çubuğunda Claude oturum yüzdesini göster"), isOn: $showClaude)
-                    .onChange(of: showClaude) { _, _ in UsageStore.shared.configureBackgroundPolling() }
             }
+            .padding(.top, 46).padding(.bottom, 22).padding(.horizontal, 6)
 
-            Section(L("Uyanık kalma")) {
-                Toggle(L("Ekranı da açık tut"), isOn: $keepDisplayOn)
-                    .onChange(of: keepDisplayOn) { _, _ in KeepAwake.shared.reapply() }
-                LabeledContent(L("Kapak kapalı modu")) {
-                    if lid.passwordless {
-                        HStack {
-                            Label(L("Şifresiz"), systemImage: "checkmark.seal.fill").foregroundStyle(.green)
-                            Button(L("Kaldır")) { lid.removePasswordless() }
-                        }
-                    } else {
-                        Button(L("Şifresiz kullanımı kur…")) { lid.installPasswordless() }
-                    }
-                }
-                Text(L("Kapak modu `pmset disablesleep` kullanır ve root ister. Şifresiz kurulum, yalnızca bu iki pmset komutuna izin veren bir sudoers kuralı ekler (/etc/sudoers.d/perch). Perch kapanırken ayar geri alınır."))
-                    .font(.caption).foregroundStyle(.secondary)
+            ForEach(MainTab.allCases.filter { $0 != .settings }) { tab in
+                item(tab)
             }
-
-            Section(L("Ekran görüntüsü")) {
-                LabeledContent(L("Alan / pencere")) { HotkeyRecorder(key: Keys.hotkeyArea) }
-                LabeledContent(L("Tam ekran")) { HotkeyRecorder(key: Keys.hotkeyScreen) }
-                Text(L("Alan modunda Boşluk tuşu pencere seçimine geçer.")).font(.caption).foregroundStyle(.secondary)
-                if Hotkey.systemScreenshotShortcutsEnabled {
-                    HStack {
-                        Label(L("macOS'in kendi ⇧⌘3 / ⇧⌘4 kısayolları açık ve Perch'ünkünü eziyor. Klavye › Kısayollar › Ekran Görüntüleri'nden kapat."),
-                              systemImage: "exclamationmark.triangle")
-                            .font(.caption).foregroundStyle(.orange)
-                        Button(L("Aç")) {
-                            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension")!)
-                        }
-                    }
-                }
-                Toggle(L("Alındığında panoya kopyala"), isOn: $copyOnCapture)
-                LabeledContent(L("Kaydetme klasörü")) {
-                    HStack {
-                        Text(saveFolder.replacingOccurrences(of: FS.home, with: "~")).foregroundStyle(.secondary)
-                            .lineLimit(1).truncationMode(.middle)
-                        Button(L("Değiştir…")) {
-                            let p = NSOpenPanel()
-                            p.canChooseDirectories = true
-                            p.canChooseFiles = false
-                            p.canCreateDirectories = true
-                            p.directoryURL = URL(fileURLWithPath: saveFolder)
-                            if p.runModal() == .OK, let u = p.url { saveFolder = u.path }
-                        }
-                    }
-                }
-                Picker(L("Yığından otomatik kaldır"), selection: $shelfAutoClose) {
-                    Text(L("Asla")).tag(0)
-                    Text(L("30 saniye")).tag(30)
-                    Text(L("1 dakika")).tag(60)
-                    Text(L("5 dakika")).tag(300)
-                }
-                LabeledContent(L("Ekran kaydı izni")) {
-                    if screenAccess {
-                        Label(L("Verildi"), systemImage: "checkmark.circle.fill").foregroundStyle(.green)
-                    } else {
-                        Button(L("Sistem Ayarları'nı aç")) {
-                            CGRequestScreenCaptureAccess()
-                            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
-                        }
-                    }
-                }
-            }
-
-            Section {
-                HStack {
-                    Text("Perch \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev")")
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button(L("Çık")) { NSApp.terminate(nil) }
-                }
-            }
+            Spacer()
+            awakeCard
+            item(.settings)
         }
-        .formStyle(.grouped)
-        .onAppear { screenAccess = CGPreflightScreenCaptureAccess() }
-    }
-}
-
-struct HotkeyRecorder: View {
-    let key: String
-    @State private var current: Hotkey?
-    @State private var recording = false
-    @State private var monitor: Any?
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Button {
-                recording ? stop() : start()
-            } label: {
-                Text(recording ? L("Kısayola bas…") : (current?.display ?? L("Yok")))
-                    .frame(minWidth: 90)
-                    .monospaced()
-            }
-            if current != nil && !recording {
-                Button {
-                    UserDefaults.standard.set("", forKey: key)
-                    current = nil
-                    HotKeyCenter.shared.reloadFromDefaults()
-                } label: { Image(systemName: "xmark.circle.fill") }
-                    .buttonStyle(.borderless).foregroundStyle(.secondary)
-            }
-        }
-        .onAppear { current = Hotkey.load(key) }
-        .onDisappear { stop() }
+        .padding(.horizontal, 12).padding(.bottom, 14)
+        .frame(width: 214)
+        .background(Color.black.opacity(0.18))
     }
 
-    private func start() {
-        recording = true
-        HotKeyCenter.shared.unregisterAll()
-        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { e in
-            if e.keyCode == 53 { stop(); return nil } // esc
-            if let hk = Hotkey(event: e) {
-                UserDefaults.standard.set(hk.encoded, forKey: key)
-                current = hk
-                stop()
+    private func item(_ tab: MainTab) -> some View {
+        let on = selection == tab
+        return Button {
+            withAnimation(.easeOut(duration: 0.15)) { selection = tab }
+        } label: {
+            HStack(spacing: 11) {
+                IconBadge(symbol: tab.icon, tint: on ? tab.tint : Dusk.text2, size: 28)
+                Text(tab.title).font(.system(size: 13.5, weight: on ? .semibold : .medium, design: .rounded))
+                    .foregroundStyle(on ? Dusk.text : Dusk.text2)
+                Spacer()
+                if on {
+                    Capsule().fill(Dusk.accent).frame(width: 4, height: 16)
+                }
             }
-            return nil
+            .rowChrome(selected: false)
+            .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(on ? Dusk.surfaceHi : .clear))
         }
+        .buttonStyle(.plain)
     }
 
-    private func stop() {
-        if let monitor { NSEvent.removeMonitor(monitor) }
-        monitor = nil
-        if recording {
-            recording = false
-            HotKeyCenter.shared.reloadFromDefaults()
+    private var awakeCard: some View {
+        DuskCard(padding: 12, radius: 14, tint: awake.isActive ? Dusk.amber : nil) {
+            HStack(spacing: 10) {
+                Image(systemName: awake.isActive ? "sun.max.fill" : "moon.zzz.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(awake.isActive ? Dusk.amber : Dusk.text3)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(L("Uyanık kal")).font(Dusk.heading(12.5))
+                    Text(awake.isActive ? L("Açık") : L("Kapalı")).font(Dusk.caption).foregroundStyle(Dusk.text3)
+                }
+                Spacer()
+                Toggle("", isOn: Binding(get: { awake.isActive }, set: { $0 ? awake.toggle() : awake.stop() }))
+                    .toggleStyle(PillSwitch())
+            }
         }
+        .padding(.bottom, 6)
     }
 }
