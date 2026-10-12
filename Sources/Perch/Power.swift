@@ -128,16 +128,16 @@ final class LidSleep: ObservableObject {
             }
             let installed = FileManager.default.fileExists(atPath: Self.sudoersPath)
             let rival = await Self.conflictingApp()
-            let state = state
+            let finalState = state
             await MainActor.run {
                 let me = LidSleep.shared
                 me.busy = false
-                me.isEnabled = state
+                me.isEnabled = finalState
                 me.passwordless = installed
-                if on && state { me.enabledByUs = true }
+                if on && finalState { me.enabledByUs = true }
                 if !ok {
                     me.lastError = "İzin verilmedi"
-                } else if state != on {
+                } else if finalState != on {
                     me.lastError = rival.map { "\($0) ayarı geri değiştiriyor – onun kapak modunu kapat" }
                         ?? "Ayar uygulanmadı, başka bir uygulama değiştiriyor olabilir"
                 }
