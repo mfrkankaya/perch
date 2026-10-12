@@ -46,6 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 final class StatusController: NSObject, NSPopoverDelegate {
     private var item: NSStatusItem!
     private let popover = NSPopover()
+    private var outsideClickMonitor: Any?
 
     func install() {
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -53,7 +54,9 @@ final class StatusController: NSObject, NSPopoverDelegate {
         item.button?.action = #selector(toggle(_:))
         item.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
         item.button?.imagePosition = .imageLeading
-        popover.behavior = .transient
+        // Closed manually on outside clicks: `.transient` also closes as soon as the app activates,
+        // which made the menu vanish (or need a second click) when a Perch window was open.
+        popover.behavior = .applicationDefined
         popover.animates = false
         popover.delegate = self
         refreshButton()
@@ -83,10 +86,10 @@ final class StatusController: NSObject, NSPopoverDelegate {
         let host = FirstMouseHostingController(rootView: MenuView(close: { [weak self] in self?.close() }))
         host.sizingOptions = .preferredContentSize
         popover.contentViewController = host
-        // Activate first so the very first click lands on the control instead of focusing the popover.
-        NSApp.activate()
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-        popover.contentViewController?.view.window?.makeKey()
+        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            self?.close()
+        }
         UsageStore.shared.refreshIfStale()
         LidSleep.shared.refresh()
     }
@@ -94,6 +97,8 @@ final class StatusController: NSObject, NSPopoverDelegate {
     func close() { popover.performClose(nil) }
 
     func popoverDidClose(_ notification: Notification) {
+        if let m = outsideClickMonitor { NSEvent.removeMonitor(m) }
+        outsideClickMonitor = nil
         popover.contentViewController = nil
     }
 }

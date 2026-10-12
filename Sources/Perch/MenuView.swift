@@ -24,9 +24,9 @@ struct MenuView: View {
             Text("Perch").font(.headline)
             Spacer()
             Button { open(.settings) } label: { Image(systemName: "gearshape") }
-                .buttonStyle(.borderless).help("Ayarlar")
+                .buttonStyle(.plain).help("Ayarlar")
             Button { NSApp.terminate(nil) } label: { Image(systemName: "power") }
-                .buttonStyle(.borderless).help("Çık")
+                .buttonStyle(.plain).help("Çık")
         }
     }
 
@@ -44,7 +44,7 @@ struct MenuView: View {
                 }
                 Spacer()
                 Toggle("", isOn: Binding(get: { awake.isActive }, set: { $0 ? awake.toggle() : awake.stop() }))
-                    .toggleStyle(.switch).labelsHidden().controlSize(.small)
+                    .toggleStyle(PillSwitch())
             }
             HStack(spacing: 4) {
                 ForEach(KeepAwake.presets, id: \.seconds) { p in
@@ -70,7 +70,7 @@ struct MenuView: View {
                 Spacer()
                 if lid.busy { ProgressView().controlSize(.mini) }
                 Toggle("", isOn: Binding(get: { lid.isEnabled }, set: { lid.set($0) }))
-                    .toggleStyle(.switch).labelsHidden().controlSize(.small)
+                    .toggleStyle(PillSwitch())
                     .disabled(lid.busy)
             }
         }
@@ -104,7 +104,7 @@ struct MenuView: View {
                     Text(Fmt.relative(u)).font(.caption2).foregroundStyle(.tertiary)
                 }
                 Button { usage.refresh() } label: { Image(systemName: "arrow.clockwise").font(.caption) }
-                    .buttonStyle(.borderless).disabled(usage.isLoading)
+                    .buttonStyle(.plain).disabled(usage.isLoading)
             }
             provider("Claude", color: Color(red: 0.85, green: 0.47, blue: 0.34), usage.claude)
             provider("Codex", color: Color(red: 0.25, green: 0.55, blue: 0.95), usage.codex)
@@ -238,5 +238,29 @@ struct HoverRowStyle: ButtonStyle {
                 .background(RoundedRectangle(cornerRadius: 7).fill(Color.primary.opacity(configuration.isPressed ? 0.12 : (hover ? 0.06 : 0))))
                 .onHover { hover = $0 }
         }
+    }
+}
+
+/// Pure-SwiftUI switch. The native NSSwitch ignores the click that activates an inactive
+/// popover, so it needed two clicks; a drawn switch handles the first one.
+struct PillSwitch: ToggleStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        let on = configuration.isOn
+        Capsule()
+            .fill(on ? Color.accentColor : Color.primary.opacity(0.18))
+            .frame(width: 34, height: 20)
+            .overlay(alignment: on ? .trailing : .leading) {
+                Circle().fill(.white)
+                    .shadow(color: .black.opacity(0.25), radius: 1, y: 0.5)
+                    .padding(2)
+            }
+            .animation(.easeOut(duration: 0.15), value: on)
+            .opacity(isEnabled ? 1 : 0.5)
+            .contentShape(Capsule())
+            .onTapGesture { configuration.isOn.toggle() }
+            .accessibilityAddTraits(.isButton)
+            .accessibilityValue(on ? "Açık" : "Kapalı")
     }
 }
