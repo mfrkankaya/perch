@@ -3,13 +3,14 @@ import ServiceManagement
 import SwiftUI
 
 enum MainTab: String, CaseIterable, Identifiable {
-    case cleanup, disk, apps, settings
+    case cleanup, disk, apps, activity, settings
     var id: String { rawValue }
     var title: String {
         switch self {
         case .cleanup: "Temizlik"
         case .disk: "Büyük Dosyalar"
         case .apps: "Uygulama Kaldır"
+        case .activity: "Etkinlik"
         case .settings: "Ayarlar"
         }
     }
@@ -18,6 +19,7 @@ enum MainTab: String, CaseIterable, Identifiable {
         case .cleanup: "sparkles"
         case .disk: "chart.bar.doc.horizontal"
         case .apps: "trash.square"
+        case .activity: "gauge.with.dots.needle.67percent"
         case .settings: "gearshape"
         }
     }
@@ -31,6 +33,7 @@ final class WindowModels: ObservableObject {
     lazy var cleaner = CleanerModel()
     lazy var disk = DiskModel()
     lazy var apps = AppsModel()
+    lazy var activity = ActivityModel()
 }
 
 @MainActor
@@ -97,6 +100,7 @@ struct MainView: View {
             case .cleanup: CleanerView(model: models.cleaner)
             case .disk: DiskView(model: models.disk)
             case .apps: AppsView(model: models.apps)
+            case .activity: ActivityView(model: models.activity)
             case .settings: SettingsView()
             }
         }

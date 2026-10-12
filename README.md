@@ -11,6 +11,7 @@ A small native macOS menu bar utility (Swift + SwiftUI, no dependencies) for per
 | Safe cleanup: caches, logs, Xcode, dev package caches, installers, Trash | Window → Temizlik |
 | Big files & folder sizes (drill-down, trash) | Window → Büyük Dosyalar |
 | App uninstaller with leftover finder (pick what to delete) | Window → Uygulama Kaldır |
+| Top CPU / memory apps (helpers grouped per app, quit from context menu), sampled only while visible | Window → Etkinlik |
 
 ## Build
 
