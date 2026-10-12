@@ -219,7 +219,7 @@ final class ActivityModel: ObservableObject {
 
     static func percent(_ share: Double) -> String {
         let p = share * 100
-        return p < 1 ? (p < 0.1 ? "%0" : String(format: "%%%.1f", p)) : "%\(Int(p.rounded()))"
+        return p < 1 ? (p < 0.1 ? Fmt.percent(0) : Fmt.percent(p, decimals: 1)) : Fmt.percent(p)
     }
 
     var cpuShare: Double { system.cpu / 100 }

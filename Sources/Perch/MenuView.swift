@@ -152,7 +152,7 @@ struct MenuView: View {
                             if let r = w.resetsAt {
                                 Text(Fmt.relative(r)).font(Dusk.caption).foregroundStyle(Dusk.text3)
                             }
-                            Text("%\(Int(w.percent.rounded()))")
+                            Text(Fmt.percent(w.percent))
                                 .font(Dusk.number(13, weight: .bold))
                                 .foregroundStyle(w.percent >= 90 ? Dusk.coral : (w.percent >= 75 ? Dusk.amber : Dusk.text))
                                 .frame(minWidth: 38, alignment: .trailing)

@@ -42,6 +42,12 @@ enum Fmt {
         return relativeFormatter.localizedString(for: d, relativeTo: .now)
     }
 
+    /// Turkish puts the sign first (%38), English after (38%).
+    static func percent(_ value: Double, decimals: Int = 0) -> String {
+        let n = decimals == 0 ? "\(Int(value.rounded()))" : String(format: "%.\(decimals)f", locale: Loc.locale, value)
+        return Loc.lang == "tr" ? "%" + n : n + "%"
+    }
+
     static func duration(_ t: TimeInterval) -> String {
         let s = max(0, Int(t))
         let d = s / 86400, h = (s % 86400) / 3600, m = (s % 3600) / 60
