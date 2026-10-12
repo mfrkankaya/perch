@@ -100,6 +100,19 @@ final class LidSleep: ObservableObject {
         return false
     }
 
+    /// Re-reads the real state (another app may have changed it meanwhile).
+    func refresh() {
+        guard !busy else { return }
+        Task.detached {
+            let state = Self.readState()
+            let pw = FileManager.default.fileExists(atPath: Self.sudoersPath)
+            await MainActor.run {
+                LidSleep.shared.isEnabled = state
+                LidSleep.shared.passwordless = pw
+            }
+        }
+    }
+
     func set(_ on: Bool) {
         guard !busy else { return }
         busy = true
@@ -107,16 +120,39 @@ final class LidSleep: ObservableObject {
         let pw = passwordless
         Task.detached {
             let ok = Self.apply(on, passwordless: pw)
-            let state = Self.readState()
+            var state = Self.readState()
+            if ok && state == on {
+                // Give a competing clamshell app a moment to flip it back, then check again.
+                try? await Task.sleep(for: .seconds(1.5))
+                state = Self.readState()
+            }
+            let installed = FileManager.default.fileExists(atPath: Self.sudoersPath)
+            let rival = await Self.conflictingApp()
             await MainActor.run {
                 let me = LidSleep.shared
                 me.busy = false
                 me.isEnabled = state
+                me.passwordless = installed
                 if on && state { me.enabledByUs = true }
-                if !ok { me.lastError = "Değişiklik uygulanamadı" }
+                if !ok {
+                    me.lastError = "İzin verilmedi"
+                } else if state != on {
+                    me.lastError = rival.map { "\($0) ayarı geri değiştiriyor – onun kapak modunu kapat" }
+                        ?? "Ayar uygulanmadı, başka bir uygulama değiştiriyor olabilir"
+                }
                 KeepAwake.shared.onChange?()
             }
         }
+    }
+
+    @MainActor
+    private static func conflictingApp() -> String? {
+        let known = ["vorssaint", "amphetamine", "theine", "lungo", "keepingyouawake", "caffeinated"]
+        return NSWorkspace.shared.runningApplications.first { app in
+            let id = (app.bundleIdentifier ?? "").lowercased()
+            let name = (app.localizedName ?? "").lowercased()
+            return known.contains { id.contains($0) || name.contains($0) }
+        }?.localizedName
     }
 
     nonisolated static func apply(_ on: Bool, passwordless: Bool) -> Bool {
@@ -125,15 +161,20 @@ final class LidSleep: ObservableObject {
            Shell.run("/usr/bin/sudo", ["-n", "/usr/bin/pmset", "-a", "disablesleep", arg]).status == 0 {
             return true
         }
-        return Shell.runAsAdmin("/usr/bin/pmset -a disablesleep \(arg)",
-                                prompt: "Perch, kapak kapalıyken uyumayı \(on ? "kapatmak" : "geri açmak") istiyor.")
+        // First use (or broken rule): one admin prompt installs the scoped sudoers rule and
+        // applies the change, so later toggles never ask again.
+        return Shell.runAsAdmin(installRuleCommand() + "; /usr/bin/pmset -a disablesleep \(arg)",
+                                prompt: "Perch kapak modu için bir kerelik izin istiyor. Sonraki açıp kapatmalarda şifre sorulmayacak.")
+    }
+
+    nonisolated private static func installRuleCommand() -> String {
+        let rule = "\(NSUserName()) ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1"
+        let tmp = "/tmp/perch.sudoers.\(getpid())"
+        return "printf '%s\\n' \(Shell.quote(rule)) > \(tmp) && /usr/sbin/visudo -cf \(tmp) && /usr/bin/install -m 0440 -o root -g wheel \(tmp) \(sudoersPath); rm -f \(tmp)"
     }
 
     func installPasswordless() {
-        let user = NSUserName()
-        let rule = "\(user) ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1"
-        let tmp = "/tmp/perch.sudoers.\(getpid())"
-        let cmd = "printf '%s\\n' \(Shell.quote(rule)) > \(tmp) && /usr/sbin/visudo -cf \(tmp) && /usr/bin/install -m 0440 -o root -g wheel \(tmp) \(Self.sudoersPath); rm -f \(tmp)"
+        let cmd = Self.installRuleCommand()
         Task.detached {
             _ = Shell.runAsAdmin(cmd, prompt: "Perch, kapak modu için şifresiz pmset izni kurmak istiyor.")
             let exists = FileManager.default.fileExists(atPath: Self.sudoersPath)

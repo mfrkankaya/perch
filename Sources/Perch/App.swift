@@ -86,6 +86,7 @@ final class StatusController: NSObject, NSPopoverDelegate {
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
         UsageStore.shared.refreshIfStale()
+        LidSleep.shared.refresh()
     }
 
     func close() { popover.performClose(nil) }
