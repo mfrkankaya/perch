@@ -65,7 +65,7 @@ final class MainWindowController: NSObject, NSWindowDelegate {
             w.backgroundColor = NSColor(Dusk.night)
             w.isMovableByWindowBackground = true
             w.isReleasedWhenClosed = false
-            w.minSize = NSSize(width: 820, height: 540)
+            w.minSize = NSSize(width: 940, height: 580)
             w.contentViewController = NSHostingController(rootView: MainView(models: m))
             w.setContentSize(NSSize(width: 980, height: 660))
             w.center()
@@ -132,7 +132,7 @@ struct MainView: View {
         .background(DuskBackground())
         .foregroundStyle(Dusk.text)
         .environment(\.colorScheme, .dark)
-        .frame(minWidth: 820, minHeight: 540)
+        .frame(minWidth: 940, minHeight: 580)
     }
 }
 

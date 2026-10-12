@@ -11,7 +11,7 @@ struct DiskView: View {
 
     private var start: some View {
         GeometryReader { g in
-            ScrollView {
+            FadingScroll {
                 VStack(alignment: .leading, spacing: 16) {
                     PageHeader(title: L("Büyük Dosyalar"), subtitle: L("Diskinde en çok yer kaplayan klasör ve dosyalar")) { EmptyView() }
                     if !model.hasFDA { FullDiskAccessBanner() }
@@ -133,7 +133,7 @@ struct DiskView: View {
                 EmptyState(symbol: "doc.text.magnifyingglass", text: L("100 MB üzerinde dosya yok"))
                     .frame(minHeight: 220)
             } else {
-                ScrollView {
+                FadingScroll(fade: 14) {
                     LazyVStack(spacing: 2) {
                         ForEach(rows) { r in row(r, max: maxSize) }
                     }

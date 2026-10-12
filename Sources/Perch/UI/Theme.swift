@@ -595,3 +595,33 @@ struct FlowLayout: Layout {
         }
     }
 }
+
+/// Soft fade at the top and bottom of a scroll area instead of a hard clip line.
+struct EdgeFade: ViewModifier {
+    var top: CGFloat
+    var bottom: CGFloat
+
+    func body(content: Content) -> some View {
+        content.mask {
+            VStack(spacing: 0) {
+                LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: top)
+                Rectangle().fill(.black)
+                LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom).frame(height: bottom)
+            }
+        }
+    }
+}
+
+extension View {
+    func edgeFade(_ size: CGFloat = 28) -> some View { modifier(EdgeFade(top: size, bottom: size)) }
+}
+
+/// Vertical ScrollView with soft top/bottom edges.
+struct FadingScroll<Content: View>: View {
+    var fade: CGFloat = 28
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        ScrollView { content }.edgeFade(fade)
+    }
+}

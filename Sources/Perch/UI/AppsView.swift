@@ -11,7 +11,7 @@ struct AppsView: View {
                 EmptyView()
             }
             HStack(alignment: .top, spacing: 14) {
-                appList.frame(width: 300)
+                appList.frame(width: 280)
                 detail
             }
         }
@@ -30,7 +30,7 @@ struct AppsView: View {
                 if model.loading {
                     DuskSpinner().frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    ScrollView {
+                    FadingScroll(fade: 14) {
                         LazyVStack(spacing: 2) {
                             ForEach(model.visibleApps) { app in appRow(app) }
                         }
@@ -66,7 +66,7 @@ struct AppsView: View {
                         AppIconView(path: app.url.path, size: 64)
                             .shadow(color: .black.opacity(0.4), radius: 10, y: 4)
                         VStack(alignment: .leading, spacing: 5) {
-                            Text(app.name).font(Dusk.title(22))
+                            Text(app.name).font(Dusk.title(22)).lineLimit(1).truncationMode(.tail)
                             Text(app.bundleID ?? app.url.path).font(Dusk.caption).foregroundStyle(Dusk.text3)
                                 .textSelection(.enabled)
                             HStack(spacing: 6) {
@@ -126,7 +126,7 @@ struct AppsView: View {
     private var relatedList: some View {
         let groups = Dictionary(grouping: model.related, by: \.group)
         let order = model.related.map(\.group).reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
-        return ScrollView {
+        return FadingScroll(fade: 14) {
             LazyVStack(alignment: .leading, spacing: 4) {
                 ForEach(order, id: \.self) { g in
                     let files = groups[g] ?? []

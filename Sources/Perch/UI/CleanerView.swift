@@ -23,7 +23,7 @@ struct CleanerView: View {
 
     private var start: some View {
         GeometryReader { g in
-            ScrollView {
+            FadingScroll {
                 VStack(alignment: .leading, spacing: 16) {
                     PageHeader(title: L("Temizlik"), subtitle: L("Silinmesi güvenli önbellek, günlük ve geçici dosyalar")) { EmptyView() }
                     if !FS.hasFullDiskAccess { FullDiskAccessBanner() }
@@ -43,7 +43,7 @@ struct CleanerView: View {
     }
 
     private var results: some View {
-        ScrollView {
+        FadingScroll {
             VStack(alignment: .leading, spacing: 16) {
                 PageHeader(title: L("Temizlik"), subtitle: L("Silinmesi güvenli önbellek, günlük ve geçici dosyalar")) {
                     Button { model.scan() } label: { Label(L("Yeniden tara"), systemImage: "arrow.clockwise") }

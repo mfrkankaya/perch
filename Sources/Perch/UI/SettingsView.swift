@@ -14,7 +14,7 @@ struct SettingsView: View {
     @State private var language = Loc.choice
 
     var body: some View {
-        ScrollView {
+        FadingScroll {
             VStack(alignment: .leading, spacing: 18) {
                 PageHeader(title: L("Ayarlar"), subtitle: "Perch \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev")") {
                     Button(L("Çık")) { NSApp.terminate(nil) }.buttonStyle(DuskButton(kind: .danger))

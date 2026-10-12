@@ -6,7 +6,7 @@ struct ActivityView: View {
     @State private var confirmForce: ActivityModel.Row?
 
     var body: some View {
-        ScrollView {
+        FadingScroll {
             VStack(alignment: .leading, spacing: 16) {
                 PageHeader(title: L("Etkinlik"), subtitle: L("Mac'i şu an en çok ne yoruyor?")) {
                     HStack(spacing: 6) {
