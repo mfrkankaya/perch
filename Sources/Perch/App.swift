@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Keys.registerDefaults()
+        NSApp.mainMenu = Self.makeMainMenu()
         status.install()
         Screenshotter.shared.prepare()
         HotKeyCenter.shared.reloadFromDefaults()
@@ -29,6 +30,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
            let tab = MainTab(rawValue: CommandLine.arguments[i + 1]) {
             MainWindowController.shared.show(tab)
         }
+    }
+
+    /// Shown only while the window is open (regular activation): standard editing and window shortcuts.
+    private static func makeMainMenu() -> NSMenu {
+        let main = NSMenu()
+        func submenu(_ title: String, _ items: [NSMenuItem]) {
+            let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            let menu = NSMenu(title: title)
+            items.forEach(menu.addItem)
+            item.submenu = menu
+            main.addItem(item)
+        }
+        func mi(_ t: String, _ a: Selector?, _ k: String) -> NSMenuItem { NSMenuItem(title: t, action: a, keyEquivalent: k) }
+        submenu("Perch", [
+            mi("Perch'ü Gizle", #selector(NSApplication.hide(_:)), "h"),
+            .separator(),
+            mi("Perch'ten Çık", #selector(NSApplication.terminate(_:)), "q"),
+        ])
+        submenu("Düzen", [
+            mi("Geri Al", Selector(("undo:")), "z"),
+            mi("Yinele", Selector(("redo:")), "Z"),
+            .separator(),
+            mi("Kes", #selector(NSText.cut(_:)), "x"),
+            mi("Kopyala", #selector(NSText.copy(_:)), "c"),
+            mi("Yapıştır", #selector(NSText.paste(_:)), "v"),
+            mi("Tümünü Seç", #selector(NSText.selectAll(_:)), "a"),
+        ])
+        submenu("Pencere", [
+            mi("Kapat", #selector(NSWindow.performClose(_:)), "w"),
+            mi("Küçült", #selector(NSWindow.performMiniaturize(_:)), "m"),
+        ])
+        return main
     }
 
     func applicationWillTerminate(_ notification: Notification) {

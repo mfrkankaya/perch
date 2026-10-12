@@ -59,12 +59,22 @@ final class MainWindowController: NSObject, NSWindowDelegate {
             window = w
         }
         models?.tab = tab
+        // While the window is open Perch behaves like a normal app (Dock icon, ⌘⇥),
+        // so it can't get lost behind other windows.
+        NSApp.setActivationPolicy(.regular)
+        bringToFront()
+    }
+
+    /// Re-focuses the window after something else (an admin prompt, a quitting app) took focus.
+    func bringToFront() {
+        guard let window else { return }
         NSApp.activate()
-        window?.makeKeyAndOrderFront(nil)
-        window?.orderFrontRegardless()
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
     }
 
     func windowWillClose(_ notification: Notification) {
+        NSApp.setActivationPolicy(.accessory)
         DispatchQueue.main.async {
             self.window?.contentViewController = nil
             self.window = nil

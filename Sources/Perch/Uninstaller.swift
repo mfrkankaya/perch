@@ -209,6 +209,7 @@ final class AppsModel: ObservableObject {
             }
             let res = await Task.detached { await FS.recycle(urls, adminFallback: true) }.value
             working = false
+            MainWindowController.shared.bringToFront()
             let bundleGone = !FileManager.default.fileExists(atPath: app.url.path)
             if res.failed.isEmpty {
                 message = "\(app.name): \(res.ok) öğe Çöp Kutusu'na taşındı."
