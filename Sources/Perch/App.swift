@@ -32,6 +32,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    @objc func closeMainWindow(_ sender: Any?) {
+        MainWindowController.shared.close()
+    }
+
     /// Shown only while the window is open (regular activation): standard editing and window shortcuts.
     private static func makeMainMenu() -> NSMenu {
         let main = NSMenu()
@@ -46,7 +50,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         submenu("Perch", [
             mi("Perch'ü Gizle", #selector(NSApplication.hide(_:)), "h"),
             .separator(),
-            mi("Perch'ten Çık", #selector(NSApplication.terminate(_:)), "q"),
+            // ⌘Q only closes the window; Perch keeps living in the menu bar.
+            mi("Pencereyi Kapat", #selector(AppDelegate.closeMainWindow(_:)), "q"),
+            {
+                let quit = mi("Perch'ten Tamamen Çık", #selector(NSApplication.terminate(_:)), "q")
+                quit.keyEquivalentModifierMask = [.command, .option]
+                return quit
+            }(),
         ])
         submenu("Düzen", [
             mi("Geri Al", Selector(("undo:")), "z"),

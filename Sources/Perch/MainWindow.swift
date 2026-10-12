@@ -68,6 +68,10 @@ final class MainWindowController: NSObject, NSWindowDelegate {
         bringToFront()
     }
 
+    func close() {
+        window?.performClose(nil)
+    }
+
     /// Re-focuses the window after something else (an admin prompt, a quitting app) took focus.
     func bringToFront() {
         guard let window else { return }
