@@ -113,37 +113,50 @@ final class LidSleep: ObservableObject {
         }
     }
 
+    private var generation = 0
+
+    /// Optimistic: the switch flips immediately; if applying fails (or another app reverts it)
+    /// the real state is restored and the error shown.
     func set(_ on: Bool) {
-        guard !busy else { return }
+        guard !busy, on != isEnabled else { return }
         busy = true
         lastError = nil
+        isEnabled = on
+        generation += 1
+        let gen = generation
+        KeepAwake.shared.onChange?()
         let pw = passwordless
         Task.detached {
             let ok = Self.apply(on, passwordless: pw)
-            var state = Self.readState()
-            if ok && state == on {
-                // Give a competing clamshell app a moment to flip it back, then check again.
-                try? await Task.sleep(for: .seconds(1.5))
-                state = Self.readState()
-            }
+            let state = Self.readState()
             let installed = FileManager.default.fileExists(atPath: Self.sudoersPath)
-            let rival = await Self.conflictingApp()
-            let finalState = state
             await MainActor.run {
                 let me = LidSleep.shared
                 me.busy = false
-                me.isEnabled = finalState
                 me.passwordless = installed
-                if on && finalState { me.enabledByUs = true }
-                if !ok {
-                    me.lastError = L("İzin verilmedi")
-                } else if finalState != on {
-                    me.lastError = rival.map { L("%@ ayarı geri değiştiriyor – onun kapak modunu kapat", $0) }
-                        ?? L("Ayar uygulanmadı, başka bir uygulama değiştiriyor olabilir")
-                }
-                KeepAwake.shared.onChange?()
+                if on && state { me.enabledByUs = true }
+                if !ok || state != on { me.fail(ok: ok, actual: state) }
+            }
+            guard ok && state == on else { return }
+            // A competing clamshell app may flip it back a moment later.
+            try? await Task.sleep(for: .seconds(1.5))
+            let later = Self.readState()
+            await MainActor.run {
+                let me = LidSleep.shared
+                if me.generation == gen && !me.busy && later != on { me.fail(ok: true, actual: later) }
             }
         }
+    }
+
+    private func fail(ok: Bool, actual: Bool) {
+        isEnabled = actual
+        if !ok {
+            lastError = L("İzin verilmedi")
+        } else {
+            lastError = Self.conflictingApp().map { L("%@ ayarı geri değiştiriyor – onun kapak modunu kapat", $0) }
+                ?? L("Ayar uygulanmadı, başka bir uygulama değiştiriyor olabilir")
+        }
+        KeepAwake.shared.onChange?()
     }
 
     @MainActor

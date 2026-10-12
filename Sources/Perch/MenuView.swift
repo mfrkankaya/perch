@@ -87,10 +87,8 @@ struct MenuView: View {
                             .foregroundStyle(lid.lastError != nil ? Dusk.coral : Dusk.text3)
                     }
                     Spacer()
-                    if lid.busy { DuskSpinner(size: 14) }
                     Toggle("", isOn: Binding(get: { lid.isEnabled }, set: { lid.set($0) }))
                         .toggleStyle(PillSwitch())
-                        .disabled(lid.busy)
                 }
             }
         }

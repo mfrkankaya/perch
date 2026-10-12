@@ -141,11 +141,7 @@ private struct Sidebar: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 10) {
                 Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 34, height: 34)
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("Perch").font(Dusk.title(19))
-                    Text(L("Mac'in için küçük yardımcı")).font(Dusk.caption).foregroundStyle(Dusk.text3)
-                        .lineLimit(1).minimumScaleFactor(0.75)
-                }
+                Text("Perch").font(Dusk.title(20))
             }
             .padding(.top, 46).padding(.bottom, 22).padding(.horizontal, 6)
 
@@ -157,7 +153,7 @@ private struct Sidebar: View {
             item(.settings)
         }
         .padding(.horizontal, 12).padding(.bottom, 14)
-        .frame(width: 214)
+        .frame(width: 240)
         .background(Color.black.opacity(0.18))
     }
 
@@ -169,6 +165,7 @@ private struct Sidebar: View {
             HStack(spacing: 11) {
                 IconBadge(symbol: tab.icon, tint: on ? tab.tint : Dusk.text2, size: 28)
                 Text(tab.title).font(.system(size: 13.5, weight: on ? .semibold : .medium, design: .rounded))
+                    .lineLimit(1)
                     .foregroundStyle(on ? Dusk.text : Dusk.text2)
                 Spacer()
                 if on {

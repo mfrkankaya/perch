@@ -163,7 +163,6 @@ extension Loc {
         "Mac rahat çalışıyor. İşlemci %@, bellek %@ / %@.": "Your Mac is running comfortably. CPU %@, memory %@ / %@.",
 
         // Dusk redesign
-        "Mac'in için küçük yardımcı": "A little helper for your Mac",
         "temizlenebilir alan bulundu": "of space you can free up",
         "Taranıyor…": "Scanning…",
         "%d öğe seçildi": "%d selected",
