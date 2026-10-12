@@ -82,17 +82,24 @@ A plain-language answer to "why is my Mac slow?":
 
 ## Install
 
+### Download
+
+Grab the latest **Perch-x.y.z.zip** from [Releases](https://github.com/mfrkankaya/perch/releases), unzip it and move **Perch.app** to `/Applications`. Builds are universal (Apple Silicon + Intel).
+
+> [!IMPORTANT]
+> Builds aren't notarized yet, so macOS blocks the first launch. Right-click Perch.app → **Open**, or run `xattr -dr com.apple.quarantine /Applications/Perch.app`.
+
 ### Build from source
 
 Requirements: **macOS 14 Sonoma or later** and Xcode 16+ (or a Swift 5.10+ toolchain).
 
 ```bash
-git clone https://github.com/<you>/perch.git
+git clone https://github.com/mfrkankaya/perch.git
 cd perch
 ./scripts/build.sh --install   # builds, signs and copies Perch.app to /Applications
 ```
 
-`./scripts/build.sh` alone produces `build/Perch.app`.
+`./scripts/build.sh` alone produces `build/Perch.app`; `./scripts/build.sh --release` makes a universal `build/Perch-<version>.zip`.
 
 The script signs with your first *Apple Development* / *Developer ID* identity, if you have one. A stable signature keeps macOS privacy permissions (like Screen Recording) across rebuilds. Without one it falls back to ad-hoc signing.
 
