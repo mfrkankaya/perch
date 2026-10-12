@@ -23,14 +23,15 @@ struct AppsView: View {
 
     private var appList: some View {
         DuskCard(padding: 10, radius: 18) {
-            VStack(spacing: 10) {
+            VStack(spacing: 0) {
                 DuskSearchField(text: $model.search, placeholder: L("Ara"))
+                    .padding(.bottom, 8)
                 DuskSegmented(selection: $model.sort,
                               options: AppsModel.Sort.allCases.map { ($0, L($0.rawValue)) }, compact: true)
                 if model.loading {
                     DuskSpinner().frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    FadingScroll(fade: 14) {
+                    FadingScroll(fade: 14, inset: 14) {
                         LazyVStack(spacing: 2) {
                             ForEach(model.visibleApps) { app in appRow(app) }
                         }
@@ -126,7 +127,7 @@ struct AppsView: View {
     private var relatedList: some View {
         let groups = Dictionary(grouping: model.related, by: \.group)
         let order = model.related.map(\.group).reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
-        return FadingScroll(fade: 14) {
+        return FadingScroll(fade: 14, inset: 14) {
             LazyVStack(alignment: .leading, spacing: 4) {
                 ForEach(order, id: \.self) { g in
                     let files = groups[g] ?? []
@@ -139,7 +140,7 @@ struct AppsView: View {
                     ForEach(files) { f in fileRow(f) }
                 }
             }
-            .padding(10)
+            .padding(.horizontal, 10)
         }
     }
 

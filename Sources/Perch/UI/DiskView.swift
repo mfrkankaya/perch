@@ -133,7 +133,7 @@ struct DiskView: View {
                 EmptyState(symbol: "doc.text.magnifyingglass", text: L("100 MB üzerinde dosya yok"))
                     .frame(minHeight: 220)
             } else {
-                FadingScroll(fade: 14) {
+                FadingScroll(fade: 14, inset: 14) {
                     LazyVStack(spacing: 2) {
                         ForEach(rows) { r in row(r, max: maxSize) }
                     }

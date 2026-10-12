@@ -619,9 +619,12 @@ extension View {
 /// Vertical ScrollView with soft top/bottom edges.
 struct FadingScroll<Content: View>: View {
     var fade: CGFloat = 28
+    /// Extra space above/below the content so nothing sits in the fade zone at rest.
+    /// Pages already have 28pt padding; lists inside cards pass their fade size.
+    var inset: CGFloat = 0
     @ViewBuilder var content: Content
 
     var body: some View {
-        ScrollView { content }.edgeFade(fade)
+        ScrollView { content.padding(.vertical, inset) }.edgeFade(fade)
     }
 }
