@@ -114,6 +114,7 @@ struct MainView: View {
     var body: some View {
         HStack(spacing: 0) {
             Sidebar(selection: $models.tab)
+                .layoutPriority(1)
             Rectangle().fill(Dusk.stroke).frame(width: 1)
             Group {
                 switch models.tab ?? .cleanup {
@@ -124,7 +125,9 @@ struct MainView: View {
                 case .settings: SettingsView()
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Content takes what's left and can never squeeze the sidebar.
+            .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
         }
         .background(DuskBackground())
         .foregroundStyle(Dusk.text)
@@ -154,6 +157,7 @@ private struct Sidebar: View {
         }
         .padding(.horizontal, 12).padding(.bottom, 14)
         .frame(width: 240)
+        .fixedSize(horizontal: true, vertical: false)
         .background(Color.black.opacity(0.18))
     }
 

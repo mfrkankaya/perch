@@ -10,23 +10,28 @@ struct DiskView: View {
     }
 
     private var start: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            PageHeader(title: L("Büyük Dosyalar"), subtitle: L("Diskinde en çok yer kaplayan klasör ve dosyalar")) { EmptyView() }
-            if !model.hasFDA { FullDiskAccessBanner() }
-            StartScanView(
-                symbol: "square.stack.3d.up.fill", tint: Dusk.violet,
-                title: L("Yer kaplayanları bul"),
-                subtitle: L("Seçtiğin klasörü baştan sona tarar, klasörleri boyuta göre sıralar ve 100 MB üzerindeki dosyaları listelerim."),
-                chips: [("house.fill", model.rootPath == FS.home ? L("Ana klasör") : model.rootPath.replacingOccurrences(of: FS.home, with: "~")),
-                        ("folder.fill", L("Klasör boyutları")), ("doc.fill", L("≥ 100 MB dosyalar"))],
-                buttonTitle: L("Taramayı başlat"),
-                action: { model.scan() }
-            ) {
-                Button { model.chooseRoot() } label: { Label(L("Başka bir klasör seç…"), systemImage: "folder") }
-                    .buttonStyle(DuskButton(kind: .ghost))
+        GeometryReader { g in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    PageHeader(title: L("Büyük Dosyalar"), subtitle: L("Diskinde en çok yer kaplayan klasör ve dosyalar")) { EmptyView() }
+                    if !model.hasFDA { FullDiskAccessBanner() }
+                    StartScanView(
+                        symbol: "square.stack.3d.up.fill", tint: Dusk.violet,
+                        title: L("Yer kaplayanları bul"),
+                        subtitle: L("Seçtiğin klasörü baştan sona tarar, klasörleri boyuta göre sıralar ve 100 MB üzerindeki dosyaları listelerim."),
+                        chips: [("house.fill", model.rootPath == FS.home ? L("Ana klasör") : model.rootPath.replacingOccurrences(of: FS.home, with: "~")),
+                                ("folder.fill", L("Klasör boyutları")), ("doc.fill", L("≥ 100 MB dosyalar"))],
+                        buttonTitle: L("Taramayı başlat"),
+                        action: { model.scan() }
+                    ) {
+                        Button { model.chooseRoot() } label: { Label(L("Başka bir klasör seç…"), systemImage: "folder") }
+                            .buttonStyle(DuskButton(kind: .ghost))
+                    }
+                }
+                .padding(28)
+                .frame(minHeight: g.size.height)
             }
         }
-        .padding(28)
     }
 
     private var results: some View {

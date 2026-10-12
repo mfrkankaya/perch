@@ -486,16 +486,16 @@ struct StartScanView<Extra: View>: View {
     @State private var hover = false
 
     var body: some View {
-        VStack(spacing: 22) {
+        VStack(spacing: 18) {
             Button(action: action) {
                 ZStack {
                     Circle().fill(RadialGradient(colors: [tint.opacity(hover ? 0.32 : 0.22), .clear],
                                                  center: .center, startRadius: 10, endRadius: 120))
-                        .frame(width: 230, height: 230)
-                    Circle().strokeBorder(tint.opacity(0.18), lineWidth: 1).frame(width: 176, height: 176)
-                    Circle().strokeBorder(tint.opacity(0.32), lineWidth: 1).frame(width: 140, height: 140)
+                        .frame(width: 196, height: 196)
+                    Circle().strokeBorder(tint.opacity(0.18), lineWidth: 1).frame(width: 156, height: 156)
+                    Circle().strokeBorder(tint.opacity(0.32), lineWidth: 1).frame(width: 126, height: 126)
                     Circle().fill(Dusk.accent)
-                        .frame(width: 104, height: 104)
+                        .frame(width: 96, height: 96)
                         .shadow(color: Dusk.orange.opacity(hover ? 0.6 : 0.4), radius: hover ? 26 : 18, y: 6)
                         .overlay(Circle().strokeBorder(.white.opacity(0.3)))
                     Image(systemName: symbol)
@@ -539,25 +539,59 @@ private struct FlowChips: View {
     let tint: Color
 
     var body: some View {
-        // Centred rows of at most four; chips never truncate.
-        let rows = stride(from: 0, to: chips.count, by: 4).map { Array(chips[$0..<min($0 + 4, chips.count)]) }
-        VStack(spacing: 8) {
-            ForEach(rows.indices, id: \.self) { row(rows[$0]) }
-        }
-    }
-
-    private func row(_ items: [(String, String)]) -> some View {
-        HStack(spacing: 8) {
-            ForEach(items, id: \.1) { symbol, text in
+        // Wraps to as many centred rows as the width allows; never forces the window wider.
+        FlowLayout(spacing: 8) {
+            ForEach(chips, id: \.1) { symbol, text in
                 HStack(spacing: 6) {
                     Image(systemName: symbol).font(.system(size: 11, weight: .semibold)).foregroundStyle(tint)
                     Text(text).font(.system(size: 12, weight: .medium, design: .rounded)).foregroundStyle(Dusk.text2)
+                        .lineLimit(1)
                 }
-                .fixedSize()
                 .padding(.horizontal, 11).padding(.vertical, 6)
                 .background(Capsule().fill(Dusk.surface))
                 .overlay(Capsule().strokeBorder(Dusk.stroke))
             }
+        }
+        .frame(maxWidth: 640)
+    }
+}
+
+/// Minimal centred flow layout.
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    private func rows(_ subviews: Subviews, width: CGFloat) -> [[(Int, CGSize)]] {
+        var rows: [[(Int, CGSize)]] = [[]]
+        var x: CGFloat = 0
+        for (i, sv) in subviews.enumerated() {
+            let size = sv.sizeThatFits(.unspecified)
+            let w = min(size.width, width)
+            if x > 0 && x + w > width { rows.append([]); x = 0 }
+            rows[rows.count - 1].append((i, CGSize(width: w, height: size.height)))
+            x += w + spacing
+        }
+        return rows
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? .infinity
+        let rs = rows(subviews, width: width)
+        let height = rs.reduce(0) { $0 + ($1.map(\.1.height).max() ?? 0) } + spacing * CGFloat(max(rs.count - 1, 0))
+        let used = rs.map { r in r.reduce(0) { $0 + $1.1.width } + spacing * CGFloat(max(r.count - 1, 0)) }.max() ?? 0
+        return CGSize(width: proposal.width ?? used, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for r in rows(subviews, width: bounds.width) {
+            let rowW = r.reduce(0) { $0 + $1.1.width } + spacing * CGFloat(max(r.count - 1, 0))
+            let rowH = r.map(\.1.height).max() ?? 0
+            var x = bounds.minX + (bounds.width - rowW) / 2
+            for (i, size) in r {
+                subviews[i].place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+                x += size.width + spacing
+            }
+            y += rowH + spacing
         }
     }
 }
