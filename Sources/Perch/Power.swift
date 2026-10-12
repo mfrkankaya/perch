@@ -128,6 +128,7 @@ final class LidSleep: ObservableObject {
             }
             let installed = FileManager.default.fileExists(atPath: Self.sudoersPath)
             let rival = await Self.conflictingApp()
+            let state = state
             await MainActor.run {
                 let me = LidSleep.shared
                 me.busy = false
