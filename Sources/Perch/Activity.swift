@@ -133,23 +133,27 @@ final class ProcessSampler: @unchecked Sendable {
 
 @MainActor
 final class ActivityModel: ObservableObject {
-    enum Sort: String, CaseIterable { case cpu = "İşlemci", memory = "Bellek" }
+    struct Row: Identifiable, Hashable {
+        let id: String
+        let name: String
+        let bundlePath: String?
+        let detail: String?
+        let share: Double       // 0…1 of the whole Mac (all cores / all RAM)
+        let value: String
+        let quittable: Bool
+        let pids: [pid_t]
+    }
 
-    @Published var sort: Sort = .cpu { didSet { resort() } }
-    @Published private(set) var top: [AppLoad] = []
-    private var apps: [AppLoad] = []
+    @Published var showBackground = false { didSet { rebuild() } }
+    @Published private(set) var cpuRows: [Row] = []
+    @Published private(set) var memRows: [Row] = []
     @Published private(set) var system = SystemLoad()
     @Published private(set) var ready = false
+    private var apps: [AppLoad] = []
     private let sampler = ProcessSampler()
     private let queue = DispatchQueue(label: "perch.activity", qos: .utility)
     private var timer: Timer?
-
-    private func resort() {
-        let sorted = sort == .cpu
-            ? apps.sorted { $0.cpu == $1.cpu ? $0.memory > $1.memory : $0.cpu > $1.cpu }
-            : apps.sorted { $0.memory > $1.memory }
-        top = Array(sorted.prefix(25))
-    }
+    private let cores = Double(ProcessInfo.processInfo.activeProcessorCount)
 
     /// Sampling runs only while the tab is on screen.
     func start() {
@@ -174,156 +178,240 @@ final class ActivityModel: ObservableObject {
             let (apps, system) = sampler.sample()
             DispatchQueue.main.async {
                 self.apps = apps
-                self.resort()
                 self.system = system
-                if !self.ready { self.ready = apps.contains { $0.cpu > 0 } || self.timer != nil }
+                self.rebuild()
+                self.ready = true
             }
         }
     }
 
-    func quit(_ app: AppLoad, force: Bool) {
-        if let path = app.bundlePath {
+    /// Apps with a Dock presence = things the user opened. Everything else is "system & background".
+    private func rebuild() {
+        let visible = Set(NSWorkspace.shared.runningApplications
+            .filter { $0.activationPolicy == .regular }
+            .compactMap { $0.bundleURL?.path })
+        var shown: [AppLoad] = []
+        var rest = AppLoad(id: "background", name: "Sistem ve arka plan", bundlePath: nil, cpu: 0, memory: 0, pids: [])
+        var restCount = 0
+        for a in apps {
+            if showBackground || (a.bundlePath.map(visible.contains) ?? false) {
+                shown.append(a)
+            } else {
+                rest.cpu += a.cpu
+                rest.memory += a.memory
+                restCount += 1
+            }
+        }
+        func row(_ a: AppLoad, cpu: Bool) -> Row {
+            let isRest = a.id == "background"
+            let detail = isRest ? "\(restCount) işlem" : (a.pids.count > 1 ? "\(a.pids.count) işlem" : nil)
+            let share = cpu ? a.cpu / 100 / cores : Double(a.memory) / Double(max(system.memTotal, 1))
+            let value = cpu ? Self.percent(share) : Fmt.bytes(a.memory)
+            return Row(id: a.id, name: a.name, bundlePath: a.bundlePath, detail: detail, share: share,
+                       value: value, quittable: !isRest, pids: a.pids)
+        }
+        let limit = 7
+        cpuRows = (shown.sorted { $0.cpu > $1.cpu }.prefix(limit) + (showBackground ? [] : [rest]))
+            .map { row($0, cpu: true) }
+        memRows = (shown.sorted { $0.memory > $1.memory }.prefix(limit) + (showBackground ? [] : [rest]))
+            .map { row($0, cpu: false) }
+    }
+
+    static func percent(_ share: Double) -> String {
+        let p = share * 100
+        return p < 1 ? (p < 0.1 ? "%0" : String(format: "%%%.1f", p)) : "%\(Int(p.rounded()))"
+    }
+
+    var cpuShare: Double { system.cpu / 100 }
+    var memShare: Double { Double(system.memUsed) / Double(max(system.memTotal, 1)) }
+
+    /// One plain sentence: is the Mac OK, and if not, who's responsible.
+    var verdict: (icon: String, color: Color, title: String, detail: String) {
+        let topMem = memRows.first { $0.quittable }
+        let topCPU = cpuRows.first { $0.quittable }
+        if system.pressure >= 4, let m = topMem {
+            return ("exclamationmark.octagon.fill", .red, "Bellek dolmak üzere",
+                    "En çok \(m.name) kullanıyor (\(m.value)). Kapatırsan Mac hemen rahatlar.")
+        }
+        if system.pressure >= 2, let m = topMem {
+            return ("exclamationmark.triangle.fill", .orange, "Bellek zorlanıyor",
+                    "Mac yavaşlayabilir. En büyük pay \(m.name) uygulamasında (\(m.value)).")
+        }
+        if cpuShare >= 0.7, let c = topCPU {
+            return ("flame.fill", .orange, "İşlemci çok yoğun",
+                    "\(c.name) işlemcinin \(c.value) kadarını kullanıyor. Pil ve ısınma için kapatmayı düşünebilirsin.")
+        }
+        if cpuShare >= 0.4, let c = topCPU {
+            return ("gauge.with.dots.needle.50percent", .yellow, "Mac biraz meşgul",
+                    "Şu an en çok \(c.name) çalışıyor (\(c.value)). Endişelenecek bir durum yok.")
+        }
+        return ("checkmark.seal.fill", .green, "Her şey yolunda",
+                "Mac rahat çalışıyor. İşlemci \(Self.percent(cpuShare)), bellek \(Fmt.bytes(system.memUsed)) / \(Fmt.bytes(system.memTotal)).")
+    }
+
+    func quit(_ row: Row, force: Bool) {
+        if let path = row.bundlePath {
             let running = NSWorkspace.shared.runningApplications.filter { $0.bundleURL?.path == path }
             if !running.isEmpty {
                 for r in running { if force { r.forceTerminate() } else { r.terminate() } }
                 return
             }
         }
-        app.pids.forEach { kill($0, force ? SIGKILL : SIGTERM) }
+        row.pids.forEach { kill($0, force ? SIGKILL : SIGTERM) }
     }
 }
 
 struct ActivityView: View {
     @ObservedObject var model: ActivityModel
-    @State private var confirmForce: AppLoad?
+    @State private var confirmForce: ActivityModel.Row?
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            summary.padding(.horizontal).padding(.bottom, 12)
-            Divider()
-            HStack {
-                Text("Uygulama")
-                Spacer()
-                Text("İşlemci").frame(width: 156, alignment: .trailing)
-                Text("Bellek").frame(width: 156, alignment: .trailing)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Etkinlik").font(.title2.bold())
+                    Text("Mac'i şu an en çok ne yoruyor?").foregroundStyle(.secondary)
+                }
+                if model.ready {
+                    verdictCard
+                    HStack(alignment: .top, spacing: 14) {
+                        column(title: "İşlemci", subtitle: "Mac'in tamamına göre", icon: "cpu",
+                               total: ActivityModel.percent(model.cpuShare), totalShare: model.cpuShare,
+                               color: .blue, rows: model.cpuRows)
+                        column(title: "Bellek", subtitle: "Toplam \(Fmt.bytes(model.system.memTotal))", icon: "memorychip",
+                               total: Fmt.bytes(model.system.memUsed), totalShare: model.memShare,
+                               color: .purple, rows: model.memRows)
+                    }
+                    Toggle("Sistem ve arka plan işlemlerini tek tek göster", isOn: $model.showBackground)
+                        .toggleStyle(.checkbox)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ProgressView().frame(maxWidth: .infinity, minHeight: 300)
+                }
             }
-            .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-            .padding(.horizontal, 26).padding(.vertical, 6)
-            List {
-                ForEach(model.top) { app in row(app) }
-            }
-            .listStyle(.inset(alternatesRowBackgrounds: true))
-            .overlay { if !model.ready { ProgressView() } }
-            Divider()
-            Text("İşlemci %100 = bir çekirdeğin tamamı (çok çekirdekli uygulamalar %100'ü geçebilir). Sağ tık: uygulamadan çık.")
-                .font(.caption).foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal).padding(.vertical, 10)
+            .padding(20)
         }
         .onAppear { model.start() }
         .onDisappear { model.stop() }
-        .confirmationDialog("\(confirmForce?.name ?? "") zorla kapatılsın mı?", isPresented: Binding(
+        .confirmationDialog("\(confirmForce?.name ?? "") yanıt vermiyor mu? Zorla kapatılsın mı?", isPresented: Binding(
             get: { confirmForce != nil }, set: { if !$0 { confirmForce = nil } })) {
-            Button("Zorla çık", role: .destructive) { if let a = confirmForce { model.quit(a, force: true) } }
+            Button("Zorla kapat", role: .destructive) { if let r = confirmForce { model.quit(r, force: true) } }
         } message: {
             Text("Kaydedilmemiş değişiklikler kaybolur.")
         }
     }
 
-    private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Etkinlik").font(.title2.bold())
-                Text("Şu an Mac'i en çok zorlayan uygulamalar").foregroundStyle(.secondary)
+    private var verdictCard: some View {
+        let v = model.verdict
+        return HStack(spacing: 14) {
+            Image(systemName: v.icon).font(.system(size: 28)).foregroundStyle(v.color)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(v.title).font(.headline)
+                Text(v.detail).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
-            Picker("", selection: $model.sort) {
-                ForEach(ActivityModel.Sort.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-            }
-            .pickerStyle(.segmented).labelsHidden().frame(width: 180)
         }
-        .padding()
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(v.color.opacity(0.1)))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(v.color.opacity(0.25)))
     }
 
-    private var summary: some View {
-        let s = model.system
-        let memRatio = Double(s.memUsed) / Double(max(s.memTotal, 1))
-        let (pressureText, pressureColor): (String, Color) = switch s.pressure {
-        case 4: ("Kritik – uygulama kapatmak iyi olur", .red)
-        case 2: ("Yüksek – Mac yavaşlayabilir", .orange)
-        default: ("Normal", .green)
-        }
-        return HStack(spacing: 12) {
-            gauge(title: "İşlemci", value: "%\(Int(s.cpu.rounded()))", ratio: s.cpu / 100,
-                  note: s.cpu >= 80 ? "Çok yoğun" : (s.cpu >= 50 ? "Orta" : "Rahat"),
-                  color: s.cpu >= 80 ? .red : (s.cpu >= 50 ? .orange : .accentColor))
-            gauge(title: "Bellek", value: "\(Fmt.bytes(s.memUsed)) / \(Fmt.bytes(s.memTotal))", ratio: memRatio,
-                  note: "Bellek baskısı: \(pressureText)", color: pressureColor)
-        }
-    }
-
-    private func gauge(title: String, value: String, ratio: Double, note: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(title).font(.callout.weight(.medium)).foregroundStyle(.secondary)
+    private func column(title: String, subtitle: String, icon: String, total: String, totalShare: Double,
+                        color: Color, rows: [ActivityModel.Row]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Label(title, systemImage: icon).font(.headline)
                 Spacer()
-                Text(value).font(.callout.weight(.semibold)).monospacedDigit()
+                Text(total).font(.title3.weight(.semibold)).monospacedDigit()
             }
-            GeometryReader { g in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.primary.opacity(0.08))
-                    Capsule().fill(color).frame(width: max(4, g.size.width * min(1, ratio)))
+            Bar(share: totalShare, color: color, height: 8)
+            Text("\(subtitle) · en çok kullananlar").font(.caption).foregroundStyle(.secondary)
+            Divider()
+            let maxShare = max(rows.map(\.share).max() ?? 0, 0.0001)
+            VStack(spacing: 4) {
+                ForEach(rows) { r in
+                    ActivityRow(row: r, color: color, scale: maxShare,
+                                onQuit: { model.quit(r, force: false) },
+                                onForceQuit: { confirmForce = r })
                 }
             }
-            .frame(height: 8)
-            .animation(.easeOut(duration: 0.4), value: ratio)
-            Text(note).font(.caption).foregroundStyle(.secondary)
         }
-        .card()
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.primary.opacity(0.04)))
     }
+}
 
-    private func row(_ app: AppLoad) -> some View {
-        HStack(spacing: 10) {
-            Group {
-                if let path = app.bundlePath {
-                    AppIconView(path: path, size: 24)
-                } else {
-                    Image(systemName: "gearshape.2").foregroundStyle(.secondary).frame(width: 24, height: 24)
+private struct Bar: View {
+    let share: Double
+    let color: Color
+    var height: CGFloat = 5
+
+    var body: some View {
+        GeometryReader { g in
+            Capsule().fill(Color.primary.opacity(0.08))
+                .overlay(alignment: .leading) {
+                    Capsule().fill(color).frame(width: max(height, g.size.width * min(1, max(0, share))))
                 }
-            }
-            VStack(alignment: .leading, spacing: 0) {
-                Text(app.name).lineLimit(1)
-                if app.pids.count > 1 {
-                    Text("\(app.pids.count) işlem").font(.caption2).foregroundStyle(.secondary)
-                }
-            }
-            Spacer(minLength: 12)
-            metric(text: String(format: "%%%.1f", app.cpu), ratio: app.cpu / 100,
-                   color: app.cpu >= 80 ? .red : (app.cpu >= 30 ? .orange : .accentColor), highlighted: model.sort == .cpu)
-            metric(text: Fmt.bytes(app.memory), ratio: Double(app.memory) / Double(max(model.system.memTotal, 1)) * 4,
-                   color: .purple, highlighted: model.sort == .memory)
         }
-        .padding(.vertical, 2)
+        .frame(height: height)
+    }
+}
+
+private struct ActivityRow: View {
+    let row: ActivityModel.Row
+    let color: Color
+    /// Bars are relative to the biggest row so differences are visible.
+    let scale: Double
+    let onQuit: () -> Void
+    let onForceQuit: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            icon.frame(width: 26, height: 26)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(row.name).lineLimit(1)
+                    if let d = row.detail { Text(d).font(.caption2).foregroundStyle(.tertiary) }
+                    Spacer(minLength: 6)
+                    Text(row.value).monospacedDigit().fontWeight(.medium)
+                }
+                Bar(share: row.share / scale, color: row.quittable ? color : .secondary)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if row.quittable && hover {
+                Button(action: onQuit) {
+                    Text("Kapat").font(.caption.weight(.semibold))
+                        .padding(.horizontal, 9).padding(.vertical, 3)
+                        .background(Capsule().fill(.regularMaterial))
+                        .overlay(Capsule().strokeBorder(Color.primary.opacity(0.15)))
+                }
+                .buttonStyle(.plain)
+                .help("Uygulamadan çık")
+            }
+        }
+        .padding(.vertical, 5).padding(.horizontal, 6)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(hover ? 0.05 : 0)))
+        .onHover { hover = $0 }
         .contextMenu {
-            Button("Çık") { model.quit(app, force: false) }
-            Button("Zorla çık…") { confirmForce = app }
-            if let path = app.bundlePath {
+            if row.quittable {
+                Button("Kapat", action: onQuit)
+                Button("Zorla kapat…", action: onForceQuit)
+            }
+            if let path = row.bundlePath {
                 Button("Finder'da göster") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)]) }
             }
         }
     }
 
-    private func metric(text: String, ratio: Double, color: Color, highlighted: Bool) -> some View {
-        HStack(spacing: 8) {
-            Capsule().fill(Color.primary.opacity(0.08))
-                .frame(width: 70, height: 6)
-                .overlay(alignment: .leading) {
-                    Capsule().fill(color.opacity(highlighted ? 0.85 : 0.4))
-                        .frame(width: max(2, 70 * min(1, ratio)), height: 6)
-                }
-            Text(text).monospacedDigit().fontWeight(highlighted ? .semibold : .regular)
-                .frame(width: 78, alignment: .trailing)
+    @ViewBuilder private var icon: some View {
+        if let path = row.bundlePath {
+            AppIconView(path: path, size: 26)
+        } else {
+            Image(systemName: row.quittable ? "terminal" : "gearshape.2.fill")
+                .font(.system(size: 15)).foregroundStyle(.secondary)
         }
     }
 }
