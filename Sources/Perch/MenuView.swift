@@ -167,6 +167,7 @@ struct MenuView: View {
 
     private var toolsSection: some View {
         VStack(spacing: 2) {
+            toolRow(.activity, "Mac'i en çok yoran uygulamalar")
             toolRow(.cleanup, "Gereksiz dosyaları temizle")
             toolRow(.disk, "Büyük dosya ve klasörler")
             toolRow(.apps, "Uygulama ve verilerini kaldır")
