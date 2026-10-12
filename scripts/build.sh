@@ -1,15 +1,26 @@
 #!/bin/zsh
-# Builds Perch.app into ./build. Pass --install to copy it to /Applications and launch it.
+# Builds Perch.app into ./build.
+#   --install   copy it to /Applications and launch it
+#   --release   universal (arm64 + x86_64) build, zipped as build/Perch-<version>.zip
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+MODE="${1:-}"
 [[ -f Resources/AppIcon.icns ]] || swift scripts/make-icon.swift
 
-swift build -c release
+if [[ "$MODE" == "--release" ]]; then
+  ARCHS=(--arch arm64 --arch x86_64)
+else
+  ARCHS=()
+fi
+
+swift build -c release "${ARCHS[@]}"
+BIN="$(swift build -c release "${ARCHS[@]}" --show-bin-path)/Perch"
+
 APP=build/Perch.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$(swift build -c release --show-bin-path)/Perch" "$APP/Contents/MacOS/Perch"
+cp "$BIN" "$APP/Contents/MacOS/Perch"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 strip -x "$APP/Contents/MacOS/Perch" 2>/dev/null || true
@@ -17,13 +28,22 @@ strip -x "$APP/Contents/MacOS/Perch" 2>/dev/null || true
 # A stable signing identity keeps the Screen Recording permission across rebuilds.
 IDENTITY=$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development|Developer ID Application/ {print $2; exit}')
 codesign --force --sign "${IDENTITY:--}" "$APP"
-echo "Built $APP (signed: ${IDENTITY:-ad-hoc})"
+echo "Built $APP (signed: ${IDENTITY:-ad-hoc}; $(lipo -archs "$APP/Contents/MacOS/Perch"))"
 
-if [[ "${1:-}" == "--install" ]]; then
+if [[ "$MODE" == "--install" ]]; then
   pkill -x Perch 2>/dev/null || true
   sleep 0.5
   rm -rf /Applications/Perch.app
   cp -R "$APP" /Applications/
   open /Applications/Perch.app
   echo "Installed to /Applications/Perch.app"
+fi
+
+if [[ "$MODE" == "--release" ]]; then
+  VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" Resources/Info.plist)
+  ZIP="build/Perch-$VERSION.zip"
+  rm -f "$ZIP"
+  ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
+  shasum -a 256 "$ZIP" | tee "$ZIP.sha256"
+  echo "Release archive: $ZIP"
 fi
