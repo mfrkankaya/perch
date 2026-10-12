@@ -129,6 +129,8 @@ final class Screenshotter {
         guard !capturing else { return }
         if !CGPreflightScreenCaptureAccess() { CGRequestScreenCaptureAccess() }
         capturing = true
+        // Keep the stack out of the shot; give the window server a beat to apply it.
+        shelf.conceal(true)
         let url = dir.appendingPathComponent("Perch \(Self.nameFormatter.string(from: Date())).png")
         var args = ["-x"]
         switch mode {
@@ -145,11 +147,17 @@ final class Screenshotter {
                 MainActor.assumeIsolated {
                     let me = Screenshotter.shared
                     me.capturing = false
+                    me.shelf.conceal(false)
                     if FileManager.default.fileExists(atPath: url.path) { me.didCapture(url) }
                 }
             }
         }
-        do { try p.run() } catch { capturing = false }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            do { try p.run() } catch {
+                self.capturing = false
+                self.shelf.conceal(false)
+            }
+        }
     }
 
     private func didCapture(_ url: URL) {
@@ -182,27 +190,45 @@ final class Shelf: ObservableObject {
     @Published private(set) var items: [ShotItem] = []
     var hovered: UUID?
     private var panel: NSPanel?
+    private var settleWork: DispatchWorkItem?
     private let maxItems = 8
+    static let cardWidth: CGFloat = 220
+    static let inAnimation = Animation.spring(response: 0.45, dampingFraction: 0.78)
+    static let outAnimation = Animation.easeIn(duration: 0.22)
 
     func add(_ url: URL) {
         guard let thumb = Self.thumbnail(url) else { return }
         let item = ShotItem(url: url, thumbnail: thumb)
-        items.append(item)
-        while items.count > maxItems { remove(items[0]) }
         showPanel()
+        withAnimation(Self.inAnimation) {
+            items.append(item)
+            while items.count > maxItems {
+                let old = items.removeFirst()
+                try? FileManager.default.removeItem(at: old.url)
+            }
+        }
+        settle(after: 0.6)
         scheduleAutoClose(item.id)
     }
 
     func remove(_ item: ShotItem) {
-        items.removeAll { $0.id == item.id }
+        expand()
+        withAnimation(Self.outAnimation) { items.removeAll { $0.id == item.id } }
         try? FileManager.default.removeItem(at: item.url)
-        if items.isEmpty { hidePanel() } else { layout() }
+        settle(after: 0.3)
     }
 
     func clear() {
-        items.forEach { try? FileManager.default.removeItem(at: $0.url) }
-        items.removeAll()
-        hidePanel()
+        expand()
+        let old = items
+        withAnimation(Self.outAnimation) { items.removeAll() }
+        old.forEach { try? FileManager.default.removeItem(at: $0.url) }
+        settle(after: 0.3)
+    }
+
+    /// Hidden (not removed) while a screenshot is being taken.
+    func conceal(_ hidden: Bool) {
+        panel?.alphaValue = hidden ? 0 : 1
     }
 
     @discardableResult
@@ -265,20 +291,37 @@ final class Shelf: ObservableObject {
             p.contentView = FirstMouseHostingView(rootView: ShelfView(shelf: self))
             panel = p
         }
-        layout()
+        expand()
         panel?.orderFrontRegardless()
     }
 
-    private func layout() {
-        guard let panel, let view = panel.contentView else { return }
-        DispatchQueue.main.async {
+    private var screenFrame: NSRect {
+        let mouse = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
+        return screen?.visibleFrame ?? .zero
+    }
+
+    /// Cards animate inside the panel, so it is made tall while something moves and
+    /// shrunk to fit afterwards (a tall transparent panel would block clicks behind it).
+    private func expand() {
+        settleWork?.cancel()
+        guard let panel else { return }
+        let vf = screenFrame
+        panel.setFrame(NSRect(x: vf.minX + 4, y: vf.minY + 4, width: Self.cardWidth + 28, height: vf.height - 8), display: true)
+    }
+
+    private func settle(after delay: Double) {
+        settleWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, let panel = self.panel, let view = panel.contentView else { return }
+            if self.items.isEmpty { self.hidePanel(); return }
             view.layoutSubtreeIfNeeded()
-            let size = view.fittingSize
-            let mouse = NSEvent.mouseLocation
-            let screen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
-            let vf = screen?.visibleFrame ?? .zero
-            panel.setFrame(NSRect(x: vf.minX + 4, y: vf.minY + 4, width: size.width, height: size.height), display: true)
+            let h = view.fittingSize.height
+            let vf = self.screenFrame
+            panel.setFrame(NSRect(x: vf.minX + 4, y: vf.minY + 4, width: Self.cardWidth + 28, height: min(h, vf.height - 8)), display: true)
         }
+        settleWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
     private func hidePanel() {
@@ -298,22 +341,25 @@ struct ShelfView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if shelf.items.count > 1 {
-                Button {
-                    shelf.clear()
-                } label: {
-                    Label(L("Tümünü kapat"), systemImage: "xmark")
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 10).padding(.vertical, 5)
-                        .background(.regularMaterial, in: Capsule())
-                }
-                .buttonStyle(.plain)
+                Button { shelf.clear() } label: { Label(L("Tümünü kapat"), systemImage: "xmark") }
+                    .buttonStyle(DuskButton(kind: .secondary))
+                    .environment(\.colorScheme, .dark)
+                    .background(Capsule().fill(Dusk.night.opacity(0.85)))
+                    .transition(.opacity.combined(with: .move(edge: .leading)))
             }
             ForEach(shelf.items) { item in
                 ShotCard(item: item, shelf: shelf)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .leading)
+                            .combined(with: .opacity)
+                            .combined(with: .scale(scale: 0.85, anchor: .bottomLeading)),
+                        removal: .move(edge: .leading).combined(with: .opacity)
+                    ))
             }
         }
         .padding(14)
         .fixedSize()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
     }
 }
 

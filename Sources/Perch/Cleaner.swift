@@ -39,6 +39,8 @@ final class CleanerModel: ObservableObject {
     @Published var deleting = false
     @Published var message: String?
     @Published var expanded: Set<String> = []
+    /// Nothing is scanned until the user asks for it.
+    @Published private(set) var started = false
 
     init() {
         categories = [
@@ -91,6 +93,7 @@ final class CleanerModel: ObservableObject {
 
     func scan() {
         guard !scanning else { return }
+        started = true
         scanning = true
         message = nil
         selection.removeAll()

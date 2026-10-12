@@ -18,6 +18,26 @@ struct CleanerView: View {
     private var foundTotal: Int64 { model.categories.reduce(0) { $0 + $1.total } }
 
     var body: some View {
+        if model.started { results } else { start }
+    }
+
+    private var start: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            PageHeader(title: L("Temizlik"), subtitle: L("Silinmesi güvenli önbellek, günlük ve geçici dosyalar")) { EmptyView() }
+            if !FS.hasFullDiskAccess { FullDiskAccessBanner() }
+            StartScanView(
+                symbol: "sparkles", tint: Dusk.amber,
+                title: L("Mac'ini temizleyelim"),
+                subtitle: L("Uygulamaların yeniden oluşturabildiği önbellekleri, eski günlükleri ve artık dosyaları bulurum. Neyin silineceğine sen karar verirsin."),
+                chips: model.categories.map { (icons[$0.id] ?? "folder.fill", L($0.title)) },
+                buttonTitle: L("Taramayı başlat"),
+                action: { model.scan() }
+            ) { EmptyView() }
+        }
+        .padding(28)
+    }
+
+    private var results: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 PageHeader(title: L("Temizlik"), subtitle: L("Silinmesi güvenli önbellek, günlük ve geçici dosyalar")) {
@@ -33,7 +53,6 @@ struct CleanerView: View {
             }
             .padding(28)
         }
-        .onAppear { model.scanIfNeeded() }
         .confirmationDialog(L("Seçili %d öğe temizlensin mi?", model.selection.count), isPresented: $confirm) {
             Button(permanently ? L("Kalıcı olarak sil") : L("Çöp Kutusu'na taşı"), role: .destructive) {
                 model.clean(permanently: permanently)

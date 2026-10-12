@@ -170,6 +170,17 @@ extension Loc {
         "Uygulamayı ve geride bıraktığı her şeyi sil": "Remove an app and everything it leaves behind",
         "Canlı": "Live",
         "en çok kullananlar": "top users",
+        "Sen onaylamadan hiçbir şey silinmez": "Nothing is deleted without your OK",
+        "Mac'ini temizleyelim": "Let's tidy up your Mac",
+        "Uygulamaların yeniden oluşturabildiği önbellekleri, eski günlükleri ve artık dosyaları bulurum. Neyin silineceğine sen karar verirsin.":
+            "I'll find caches apps can rebuild, old logs and leftover files. You decide what gets deleted.",
+        "Taramayı başlat": "Start scan",
+        "Diskinde en çok yer kaplayan klasör ve dosyalar": "The folders and files taking up the most space",
+        "Yer kaplayanları bul": "Find the space hogs",
+        "Seçtiğin klasörü baştan sona tarar, klasörleri boyuta göre sıralar ve 100 MB üzerindeki dosyaları listelerim.":
+            "I'll scan the folder you pick, rank its folders by size and list every file over 100 MB.",
+        "Klasör boyutları": "Folder sizes", "Ana klasör": "Home folder", "≥ 100 MB dosyalar": "Files ≥ 100 MB",
+        "Başka bir klasör seç…": "Choose another folder…",
         // Settings
         "Genel": "General", "Dil": "Language", "Sistem": "System",
         "Girişte otomatik başlat": "Launch at login",

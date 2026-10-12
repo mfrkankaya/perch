@@ -472,3 +472,92 @@ struct FullDiskAccessBanner: View {
         }
     }
 }
+
+/// Idle "nothing scanned yet" screen with one big start button.
+struct StartScanView<Extra: View>: View {
+    let symbol: String
+    let tint: Color
+    let title: String
+    let subtitle: String
+    let chips: [(String, String)]   // (symbol, text)
+    let buttonTitle: String
+    let action: () -> Void
+    @ViewBuilder var extra: Extra
+    @State private var hover = false
+
+    var body: some View {
+        VStack(spacing: 22) {
+            Button(action: action) {
+                ZStack {
+                    Circle().fill(RadialGradient(colors: [tint.opacity(hover ? 0.32 : 0.22), .clear],
+                                                 center: .center, startRadius: 10, endRadius: 120))
+                        .frame(width: 230, height: 230)
+                    Circle().strokeBorder(tint.opacity(0.18), lineWidth: 1).frame(width: 176, height: 176)
+                    Circle().strokeBorder(tint.opacity(0.32), lineWidth: 1).frame(width: 140, height: 140)
+                    Circle().fill(Dusk.accent)
+                        .frame(width: 104, height: 104)
+                        .shadow(color: Dusk.orange.opacity(hover ? 0.6 : 0.4), radius: hover ? 26 : 18, y: 6)
+                        .overlay(Circle().strokeBorder(.white.opacity(0.3)))
+                    Image(systemName: symbol)
+                        .font(.system(size: 40, weight: .semibold))
+                        .foregroundStyle(Dusk.ink)
+                }
+                .scaleEffect(hover ? 1.04 : 1)
+                .animation(.spring(response: 0.35, dampingFraction: 0.7), value: hover)
+                .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .onHover { hover = $0 }
+
+            VStack(spacing: 8) {
+                Text(title).font(Dusk.title(24))
+                Text(subtitle).font(Dusk.body).foregroundStyle(Dusk.text2)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: 460)
+            }
+
+            if !chips.isEmpty {
+                FlowChips(chips: chips, tint: tint)
+            }
+
+            VStack(spacing: 10) {
+                Button(action: action) { Label(buttonTitle, systemImage: "play.fill") }
+                    .buttonStyle(DuskButton(kind: .primary, large: true))
+                extra
+            }
+            Label(L("Sen onaylamadan hiçbir şey silinmez"), systemImage: "lock.fill")
+                .font(Dusk.caption).foregroundStyle(Dusk.text3)
+        }
+        .padding(.vertical, 20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct FlowChips: View {
+    let chips: [(String, String)]
+    let tint: Color
+
+    var body: some View {
+        // Centred rows of at most four; chips never truncate.
+        let rows = stride(from: 0, to: chips.count, by: 4).map { Array(chips[$0..<min($0 + 4, chips.count)]) }
+        VStack(spacing: 8) {
+            ForEach(rows.indices, id: \.self) { row(rows[$0]) }
+        }
+    }
+
+    private func row(_ items: [(String, String)]) -> some View {
+        HStack(spacing: 8) {
+            ForEach(items, id: \.1) { symbol, text in
+                HStack(spacing: 6) {
+                    Image(systemName: symbol).font(.system(size: 11, weight: .semibold)).foregroundStyle(tint)
+                    Text(text).font(.system(size: 12, weight: .medium, design: .rounded)).foregroundStyle(Dusk.text2)
+                }
+                .fixedSize()
+                .padding(.horizontal, 11).padding(.vertical, 6)
+                .background(Capsule().fill(Dusk.surface))
+                .overlay(Capsule().strokeBorder(Dusk.stroke))
+            }
+        }
+    }
+}

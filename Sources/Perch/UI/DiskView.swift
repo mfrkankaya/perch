@@ -6,6 +6,30 @@ struct DiskView: View {
     @State private var confirm = false
 
     var body: some View {
+        if model.root == nil && !model.scanning { start } else { results }
+    }
+
+    private var start: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            PageHeader(title: L("Büyük Dosyalar"), subtitle: L("Diskinde en çok yer kaplayan klasör ve dosyalar")) { EmptyView() }
+            if !model.hasFDA { FullDiskAccessBanner() }
+            StartScanView(
+                symbol: "square.stack.3d.up.fill", tint: Dusk.violet,
+                title: L("Yer kaplayanları bul"),
+                subtitle: L("Seçtiğin klasörü baştan sona tarar, klasörleri boyuta göre sıralar ve 100 MB üzerindeki dosyaları listelerim."),
+                chips: [("house.fill", model.rootPath == FS.home ? L("Ana klasör") : model.rootPath.replacingOccurrences(of: FS.home, with: "~")),
+                        ("folder.fill", L("Klasör boyutları")), ("doc.fill", L("≥ 100 MB dosyalar"))],
+                buttonTitle: L("Taramayı başlat"),
+                action: { model.scan() }
+            ) {
+                Button { model.chooseRoot() } label: { Label(L("Başka bir klasör seç…"), systemImage: "folder") }
+                    .buttonStyle(DuskButton(kind: .ghost))
+            }
+        }
+        .padding(28)
+    }
+
+    private var results: some View {
         VStack(alignment: .leading, spacing: 14) {
             PageHeader(title: L("Büyük Dosyalar"),
                        subtitle: model.rootPath.replacingOccurrences(of: FS.home, with: "~")) {
@@ -31,7 +55,6 @@ struct DiskView: View {
             else if let m = model.message { Tag(text: m, tint: Dusk.text2).padding(18) }
         }
         .animation(.easeOut(duration: 0.18), value: model.selection.isEmpty)
-        .onAppear { model.scanIfNeeded() }
         .confirmationDialog(L("%d öğe Çöp Kutusu'na taşınsın mı?", model.selection.count), isPresented: $confirm) {
             Button(L("Çöp Kutusu'na taşı"), role: .destructive) { model.trashSelected() }
         }
