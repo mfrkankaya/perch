@@ -151,6 +151,16 @@ struct SettingsView: View {
                 LabeledContent("Alan / pencere") { HotkeyRecorder(key: Keys.hotkeyArea) }
                 LabeledContent("Tam ekran") { HotkeyRecorder(key: Keys.hotkeyScreen) }
                 Text("Alan modunda Boşluk tuşu pencere seçimine geçer.").font(.caption).foregroundStyle(.secondary)
+                if Hotkey.systemScreenshotShortcutsEnabled {
+                    HStack {
+                        Label("macOS'in kendi ⇧⌘3 / ⇧⌘4 kısayolları açık ve Perch'ünkünü eziyor. Klavye › Kısayollar › Ekran Görüntüleri'nden kapat.",
+                              systemImage: "exclamationmark.triangle")
+                            .font(.caption).foregroundStyle(.orange)
+                        Button("Aç") {
+                            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension")!)
+                        }
+                    }
+                }
                 Toggle("Alındığında panoya kopyala", isOn: $copyOnCapture)
                 LabeledContent("Kaydetme klasörü") {
                     HStack {

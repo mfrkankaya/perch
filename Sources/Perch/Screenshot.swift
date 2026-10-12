@@ -10,8 +10,17 @@ struct Hotkey: Equatable {
     var modifiers: UInt32 // Carbon flags
     var display: String
 
-    static let defaultArea = Hotkey(keyCode: UInt32(kVK_ANSI_2), modifiers: UInt32(cmdKey | shiftKey), display: "⇧⌘2")
-    static let defaultScreen = Hotkey(keyCode: UInt32(kVK_ANSI_1), modifiers: UInt32(cmdKey | shiftKey), display: "⇧⌘1")
+    static let defaultArea = Hotkey(keyCode: UInt32(kVK_ANSI_4), modifiers: UInt32(cmdKey | shiftKey), display: "⇧⌘4")
+    static let defaultScreen = Hotkey(keyCode: UInt32(kVK_ANSI_3), modifiers: UInt32(cmdKey | shiftKey), display: "⇧⌘3")
+
+    /// macOS's own ⇧⌘3 / ⇧⌘4 win over ours unless they're turned off in Keyboard Shortcuts.
+    /// Symbolic hotkey ids: 28 = ⇧⌘3, 30 = ⇧⌘4 (missing entry = enabled).
+    static var systemScreenshotShortcutsEnabled: Bool {
+        let all = UserDefaults(suiteName: "com.apple.symbolichotkeys")?.dictionary(forKey: "AppleSymbolicHotKeys") ?? [:]
+        return ["28", "30"].contains { id in
+            ((all[id] as? [String: Any])?["enabled"] as? Bool) ?? true
+        }
+    }
 
     var encoded: String { "\(keyCode)|\(modifiers)|\(display)" }
 
