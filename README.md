@@ -14,6 +14,7 @@
   <img alt="Swift" src="https://img.shields.io/badge/Swift-5.10%2B-FF7A3D?style=flat-square">
   <img alt="Dependencies" src="https://img.shields.io/badge/dependencies-none-3FD9C4?style=flat-square">
   <img alt="Languages" src="https://img.shields.io/badge/i18n-EN%20%7C%20TR-A08FFF?style=flat-square">
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-5E5CE6?style=flat-square">
 </p>
 
 ---
@@ -172,4 +173,5 @@ and OpenUsage. It shares no code with any of them.
 
 ## License
 
-TBD. A license will be added before the first public release.
+Perch is open source and available under the [MIT License](LICENSE).
+
