@@ -87,8 +87,8 @@ A plain-language answer to "why is my Mac slow?":
 
 Grab the latest **Perch-x.y.z.zip** from [Releases](https://github.com/mfrkankaya/perch/releases), unzip it and move **Perch.app** to `/Applications`. Builds are universal (Apple Silicon + Intel).
 
-> [!IMPORTANT]
-> Builds aren't notarized yet, so macOS blocks the first launch. Right-click Perch.app → **Open**, or run `xattr -dr com.apple.quarantine /Applications/Perch.app`.
+> [!NOTE]
+> Official release builds are signed with Apple Developer ID and notarized by Apple, so they open out of the box without Gatekeeper warnings.
 
 ### Build from source
 

@@ -26,8 +26,17 @@ cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 strip -x "$APP/Contents/MacOS/Perch" 2>/dev/null || true
 
 # A stable signing identity keeps the Screen Recording permission across rebuilds.
-IDENTITY=$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development|Developer ID Application/ {print $2; exit}')
-codesign --force --sign "${IDENTITY:--}" "$APP"
+# Prefer Developer ID Application for distribution; fall back to Apple Development or ad-hoc.
+IDENTITY=$(security find-identity -v -p codesigning | awk -F'"' '/Developer ID Application/ {print $2; exit}')
+if [[ -z "$IDENTITY" ]]; then
+  IDENTITY=$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development/ {print $2; exit}')
+fi
+
+SIGN_ARGS=(--force --timestamp)
+if [[ "$IDENTITY" == *"Developer ID Application"* ]]; then
+  SIGN_ARGS+=(--options runtime)
+fi
+codesign "${SIGN_ARGS[@]}" --sign "${IDENTITY:--}" "$APP"
 echo "Built $APP (signed: ${IDENTITY:-ad-hoc}; $(lipo -archs "$APP/Contents/MacOS/Perch"))"
 
 if [[ "$MODE" == "--install" ]]; then
@@ -44,6 +53,19 @@ if [[ "$MODE" == "--release" ]]; then
   ZIP="build/Perch-$VERSION.zip"
   rm -f "$ZIP"
   ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
+
+  # Notarize if signed with Developer ID and notarytool profile is configured
+  NOTARY_PROFILE="perch-notary"
+  if [[ "$IDENTITY" == *"Developer ID Application"* ]] && xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" &>/dev/null; then
+    echo "Submitting $ZIP to Apple notary service..."
+    xcrun notarytool submit "$ZIP" --keychain-profile "$NOTARY_PROFILE" --wait
+    echo "Stapling notarization ticket to $APP..."
+    xcrun stapler staple "$APP"
+    rm -f "$ZIP"
+    ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
+    spctl --assess --type execute --verbose "$APP" || true
+  fi
+
   shasum -a 256 "$ZIP" | tee "$ZIP.sha256"
   echo "Release archive: $ZIP"
 fi
