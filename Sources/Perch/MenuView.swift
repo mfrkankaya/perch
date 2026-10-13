@@ -5,6 +5,7 @@ struct MenuView: View {
     let onSize: (CGSize) -> Void
     @ObservedObject private var awake = KeepAwake.shared
     @ObservedObject private var lid = LidSleep.shared
+    @ObservedObject private var jiggler = MouseJiggler.shared
     @ObservedObject private var usage = UsageStore.shared
 
     var body: some View {
@@ -89,6 +90,36 @@ struct MenuView: View {
                     Spacer()
                     Toggle("", isOn: Binding(get: { lid.isEnabled }, set: { lid.set($0) }))
                         .toggleStyle(PillSwitch())
+                }
+                Rectangle().fill(Dusk.stroke).frame(height: 1)
+                HStack(spacing: 12) {
+                    Image(systemName: jiggler.isEnabled ? "cursorarrow.motionlines" : "cursorarrow")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(jiggler.isEnabled ? Dusk.teal : Dusk.text2)
+                        .frame(width: 38)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L("Fareyi hareket ettir")).font(.system(size: 13, weight: .semibold, design: .rounded))
+                        Text(jiggler.isEnabled ? L("%@ hareketsiz kalınca 1px oynatır", Fmt.duration(jiggler.interval)) : L("Boştayken fareyi mikro oynatır"))
+                            .font(Dusk.caption)
+                            .foregroundStyle(jiggler.isEnabled ? Dusk.teal : Dusk.text3)
+                    }
+                    Spacer()
+                    Toggle("", isOn: Binding(get: { jiggler.isEnabled }, set: { jiggler.set($0) }))
+                        .toggleStyle(PillSwitch())
+                }
+                if jiggler.isEnabled {
+                    HStack(spacing: 4) {
+                        ForEach(MouseJiggler.intervals, id: \.seconds) { p in
+                            let selected = jiggler.interval == p.seconds
+                            Text(L(p.label))
+                                .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                                .foregroundStyle(selected ? Dusk.ink : Dusk.text2)
+                                .frame(maxWidth: .infinity).padding(.vertical, 4.5)
+                                .background(Capsule().fill(selected ? AnyShapeStyle(Dusk.teal) : AnyShapeStyle(Color.black.opacity(0.22))))
+                                .contentShape(Capsule())
+                                .onTapGesture { jiggler.setInterval(p.seconds) }
+                        }
+                    }
                 }
             }
         }

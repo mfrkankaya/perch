@@ -10,6 +10,8 @@ enum Keys {
     static let hotkeyArea = "hotkeyArea"
     static let hotkeyScreen = "hotkeyScreen"
     static let lastAwakeDuration = "lastAwakeDuration"
+    static let jigglerEnabled = "jigglerEnabled"
+    static let jigglerInterval = "jigglerInterval"
 
     static func registerDefaults() {
         UserDefaults.standard.register(defaults: [
@@ -21,6 +23,8 @@ enum Keys {
             hotkeyArea: Hotkey.defaultArea.encoded,
             hotkeyScreen: Hotkey.defaultScreen.encoded,
             lastAwakeDuration: 0,
+            jigglerEnabled: false,
+            jigglerInterval: 300.0,
         ])
     }
 }

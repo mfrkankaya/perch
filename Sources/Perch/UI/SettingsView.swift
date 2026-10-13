@@ -9,6 +9,7 @@ struct SettingsView: View {
     @AppStorage(Keys.showClaudeInMenuBar) private var showClaude = false
     @AppStorage(Keys.keepDisplayOn) private var keepDisplayOn = true
     @ObservedObject private var lid = LidSleep.shared
+    @ObservedObject private var jiggler = MouseJiggler.shared
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var screenAccess = CGPreflightScreenCaptureAccess()
     @State private var language = Loc.choice
@@ -41,6 +42,19 @@ struct SettingsView: View {
                 group(L("Uyanık kalma"), "sun.max.fill", Dusk.orange) {
                     row(L("Ekranı da açık tut")) {
                         Toggle("", isOn: $keepDisplayOn).toggleStyle(PillSwitch())
+                    }
+                    row(L("Fareyi hareket ettir (Jiggler)"),
+                        note: L("Belirlenen süre boyunca hareketsiz kalındığında fareyi 1 piksel oynatarak Slack/Teams durumunu aktif tutar.")) {
+                        Toggle("", isOn: Binding(get: { jiggler.isEnabled }, set: { jiggler.set($0) }))
+                            .toggleStyle(PillSwitch())
+                    }
+                    if jiggler.isEnabled {
+                        row(L("Hareketsizlik süresi")) {
+                            DuskSegmented(selection: Binding(get: { jiggler.interval }, set: { jiggler.setInterval($0) }),
+                                          options: [
+                                              (60.0, "1dk"), (180.0, "3dk"), (300.0, "5dk"), (600.0, "10dk"),
+                                          ])
+                        }
                     }
                     row(L("Kapak kapalı modu"),
                         note: L("Kapak modu `pmset disablesleep` kullanır ve root ister. Şifresiz kurulum, yalnızca bu iki pmset komutuna izin veren bir sudoers kuralı ekler (/etc/sudoers.d/perch). Perch kapanırken ayar geri alınır."),

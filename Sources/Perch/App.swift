@@ -77,6 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         KeepAwake.shared.stop()
         LidSleep.shared.restoreOnQuit()
+        MouseJiggler.shared.stop()
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

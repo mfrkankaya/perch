@@ -30,6 +30,7 @@ Perch replaces a handful of single-purpose utilities with one small app that liv
 ### ☀️ Stay awake
 - One switch to keep your Mac awake: indefinitely or for 15 min, 1, 2, 4 or 8 hours.
 - Optionally keep the display on too.
+- **Mouse jiggler**: automatically nudges the cursor by 1 pixel after 1, 3, 5 or 10 minutes of complete inactivity to keep Slack, Teams, and screensavers active while you're away without disturbing your work.
 - **Run with the lid closed**, with no external display required (`pmset disablesleep`). One admin prompt the first time, then it's passwordless via a sudoers rule scoped to exactly two commands. The setting is **always restored when Perch quits**.
 - The switch updates instantly and rolls back with an error if something fails. It also detects other clamshell tools (Amphetamine, Vorssaint…) that keep reverting it.
 
