@@ -165,15 +165,6 @@ Issues and pull requests are welcome. A few guidelines:
 - User-facing strings go through `L("…")`. Add the English translation to `Loc.swift`.
 - Anything that deletes files must confirm first and default to the Trash.
 
-## Acknowledgements
-
-Perch was inspired by the ideas behind
-[Amphetamine](https://apps.apple.com/app/amphetamine/id937984704),
-[CleanShot X](https://cleanshot.com),
-[CleanMyMac](https://macpaw.com/cleanmymac),
-[Pearcleaner](https://github.com/alienator88/Pearcleaner)
-and OpenUsage. It shares no code with any of them.
-
 ## License
 
 Perch is open source and available under the [MIT License](LICENSE).
