@@ -124,6 +124,8 @@ Perch has no analytics, no telemetry and no update pings. The only network reque
 
 > [!NOTE]
 > Both endpoints are undocumented and may change. If a session has expired, run `claude` or `codex` once and Perch picks up the fresh login.
+>
+> Perch also has a **manual** update check (Settings → Updates, or the arrow button in the menu). It contacts `api.github.com/repos/mfrkankaya/perch/releases/latest` only when you ask. If a newer release is found, "Download & install" fetches the signed `.zip`, verifies the bundle identifier and version, swaps the app in place (asking for admin permission only if the install location isn't writable), then quits and re-opens the new version — carrying your awake and lid-mode state across the restart. It never installs anything without your confirmation. An opt-in **automatic check** toggle (off by default, at most once a day, silent — it only shows a dot on the menu's update button) is available in the same section.
 
 ## Usage tips
 

@@ -7,6 +7,7 @@ struct MenuView: View {
     @ObservedObject private var lid = LidSleep.shared
     @ObservedObject private var jiggler = MouseJiggler.shared
     @ObservedObject private var usage = UsageStore.shared
+    @ObservedObject private var updater = Updater.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -36,6 +37,15 @@ struct MenuView: View {
             Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 26, height: 26)
             Text("Perch").font(Dusk.title(17))
             Spacer()
+            ZStack(alignment: .topTrailing) {
+                IconButton(symbol: "arrow.triangle.2.circlepath", help: L("Güncellemeleri kontrol et")) { Updater.shared.check() }
+                if updateAvailable {
+                    Circle().fill(Dusk.amber)
+                        .frame(width: 8, height: 8)
+                        .overlay(Circle().strokeBorder(Color.black.opacity(0.4), lineWidth: 1))
+                        .offset(x: 1, y: -1)
+                }
+            }
             IconButton(symbol: "gearshape.fill", help: L("Ayarlar")) { open(.settings) }
             IconButton(symbol: "power", help: L("Çık")) { NSApp.terminate(nil) }
         }
@@ -252,6 +262,13 @@ struct MenuView: View {
     private func open(_ tab: MainTab) {
         close()
         MainWindowController.shared.show(tab)
+    }
+
+    private var updateAvailable: Bool {
+        if let p = updater.pendingRelease {
+            return p.version.versionCompare(updater.currentVersion) == .orderedDescending
+        }
+        return false
     }
 }
 

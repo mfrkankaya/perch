@@ -20,6 +20,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Keys.registerDefaults()
         NSApp.mainMenu = Self.makeMainMenu()
         status.install()
+        Updater.restoreStateAfterRelaunchIfNeeded()
+        Updater.shared.scheduleAutomaticChecks()
         Screenshotter.shared.prepare()
         HotKeyCenter.shared.reloadFromDefaults()
         UsageStore.shared.onUpdate = { [weak status] in status?.refreshButton() }

@@ -206,7 +206,17 @@ final class LidSleep: ObservableObject {
 
     /// Never leave the machine unable to sleep after Perch exits.
     func restoreOnQuit() {
+        // An update restart re-opens Perch immediately; keep lid mode on across it.
+        // The fresh process adopts the state via Updater.restoreStateAfterRelaunchIfNeeded().
+        if Updater.shared.isRelaunchingForUpdate { return }
         guard enabledByUs, isEnabled else { return }
         _ = Self.apply(false, passwordless: passwordless)
+    }
+
+    /// Called on launch after an update restart: the previous process kept
+    /// `disablesleep 1` in place, so adopt ownership instead of re-applying.
+    func takeOverEnabledState() {
+        if isEnabled { enabledByUs = true }
+        else { set(true) }
     }
 }

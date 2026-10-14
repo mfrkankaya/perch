@@ -114,6 +114,8 @@ struct SettingsView: View {
                                    request: { CGRequestScreenCaptureAccess() })
                     }
                 }
+
+                UpdatesGroup()
             }
             .padding(28)
             .frame(maxWidth: 760, alignment: .leading)
@@ -250,6 +252,92 @@ struct HotkeyRecorder: View {
         if recording {
             recording = false
             HotKeyCenter.shared.reloadFromDefaults()
+        }
+    }
+}
+
+private struct UpdatesGroup: View {
+    @StateObject private var updater = Updater.shared
+    @AppStorage(Keys.autoCheckUpdates) private var autoCheck = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 9) {
+                IconBadge(symbol: "arrow.triangle.2.circlepath", tint: Dusk.sky, size: 24)
+                Text(L("Güncellemeler")).font(Dusk.heading(14))
+            }
+            DuskCard(padding: 0) {
+                VStack(spacing: 0) {
+                    HStack(alignment: .center, spacing: 16) {
+                        Text(L("Mevcut sürüm")).font(.system(size: 13, weight: .medium))
+                        Spacer(minLength: 12)
+                        Text("v\(updater.currentVersion)").font(Dusk.caption).foregroundStyle(Dusk.text2)
+                    }
+                    .padding(.horizontal, 16).padding(.vertical, 12)
+                    Rectangle().fill(Dusk.stroke).frame(height: 1).padding(.leading, 16)
+
+                    HStack(alignment: .center, spacing: 16) {
+                        Text(L("Güncellemeleri kontrol et")).font(.system(size: 13, weight: .medium))
+                        Spacer(minLength: 12)
+                        if updater.isChecking || updater.isInstalling { DuskSpinner(size: 12) }
+                        Button { updater.check() } label: {
+                            Text(L("Kontrol et")).font(.system(size: 13, weight: .semibold, design: .rounded))
+                        }
+                        .buttonStyle(DuskButton(kind: .secondary))
+                        .disabled(updater.isChecking || updater.isInstalling)
+                    }
+                    .padding(.horizontal, 16).padding(.vertical, 12)
+
+                    if let pending = updater.pendingRelease,
+                       pending.version.versionCompare(updater.currentVersion) == .orderedDescending {
+                        Rectangle().fill(Dusk.stroke).frame(height: 1).padding(.leading, 16)
+                        HStack(alignment: .center, spacing: 16) {
+                            Text(L("Yeni sürüm: %@", pending.version)).font(.system(size: 13, weight: .medium))
+                            Spacer(minLength: 12)
+                            Button { updater.downloadAndInstall(pending) } label: {
+                                Text(L("İndir ve kur")).font(.system(size: 13, weight: .semibold, design: .rounded))
+                            }
+                            .buttonStyle(DuskButton(kind: .primary))
+                            .disabled(updater.isChecking || updater.isInstalling)
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 12)
+                    }
+
+                    if !updater.statusText.isEmpty {
+                        Rectangle().fill(Dusk.stroke).frame(height: 1).padding(.leading, 16)
+                        HStack(alignment: .center, spacing: 16) {
+                            Text(L("Durum")).font(.system(size: 13, weight: .medium))
+                            Spacer(minLength: 12)
+                            Text(updater.statusText).font(Dusk.caption).foregroundStyle(Dusk.text2)
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 12)
+                    }
+
+                    if let last = updater.lastChecked {
+                        Rectangle().fill(Dusk.stroke).frame(height: 1).padding(.leading, 16)
+                        HStack(alignment: .center, spacing: 16) {
+                            Text(L("Son kontrol")).font(.system(size: 13, weight: .medium))
+                            Spacer(minLength: 12)
+                            Text(Fmt.relative(last)).font(Dusk.caption).foregroundStyle(Dusk.text3)
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 12)
+                    }
+
+                    Rectangle().fill(Dusk.stroke).frame(height: 1).padding(.leading, 16)
+                    HStack(alignment: .center, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(L("Otomatik kontrol et")).font(.system(size: 13, weight: .medium))
+                            Text(L("Günde en fazla bir kez sessizce kontrol eder. Yeni sürüm bulursa menüde nokta gösterir, pencere açmaz."))
+                                .font(Dusk.caption).foregroundStyle(Dusk.text3)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 12)
+                        Toggle("", isOn: $autoCheck).toggleStyle(PillSwitch())
+                    }
+                    .padding(.horizontal, 16).padding(.vertical, 12)
+                    .onChange(of: autoCheck) { _, _ in updater.scheduleAutomaticChecks() }
+                }
+            }
         }
     }
 }

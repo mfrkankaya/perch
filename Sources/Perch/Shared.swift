@@ -12,6 +12,10 @@ enum Keys {
     static let lastAwakeDuration = "lastAwakeDuration"
     static let jigglerEnabled = "jigglerEnabled"
     static let jigglerInterval = "jigglerInterval"
+    static let updateRelaunchLid = "updateRelaunchLid"
+    static let updateRelaunchAwake = "updateRelaunchAwake"
+    static let autoCheckUpdates = "autoCheckUpdates"
+    static let lastUpdateCheck = "lastUpdateCheck"
 
     static func registerDefaults() {
         UserDefaults.standard.register(defaults: [
@@ -25,6 +29,8 @@ enum Keys {
             lastAwakeDuration: 0,
             jigglerEnabled: false,
             jigglerInterval: 300.0,
+            autoCheckUpdates: false,
+            lastUpdateCheck: 0.0,
         ])
     }
 }
