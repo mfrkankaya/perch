@@ -211,5 +211,7 @@ extension Loc {
         "Yığından otomatik kaldır": "Auto-remove from stack", "Asla": "Never",
         "30 saniye": "30 seconds", "1 dakika": "1 minute", "5 dakika": "5 minutes",
         "Ekran kaydı izni": "Screen Recording permission", "Kısayola bas…": "Press shortcut…",
+        "İzin Sistem Ayarları'nda açık görünmesine rağmen çalışmıyorsa anahtarı kapatıp tekrar açın ve Perch'i yeniden başlatın.":
+            "If permission appears enabled in System Settings but still doesn't work, toggle it off and on, then restart Perch.",
     ]
 }

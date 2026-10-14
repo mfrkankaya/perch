@@ -127,7 +127,10 @@ final class Screenshotter {
 
     func capture(_ mode: Mode) {
         guard !capturing else { return }
-        if !CGPreflightScreenCaptureAccess() { CGRequestScreenCaptureAccess() }
+        if !CGPreflightScreenCaptureAccess() {
+            CGRequestScreenCaptureAccess()
+            return
+        }
         capturing = true
         // Keep the stack out of the shot: fade it out first, then start capturing.
         let startDelay = shelf.items.isEmpty ? 0.0 : 0.16

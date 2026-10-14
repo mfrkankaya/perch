@@ -106,7 +106,9 @@ struct SettingsView: View {
                             (0, L("Asla")), (30, "30s"), (60, "1m"), (300, "5m"),
                         ])
                     }
-                    row(L("Ekran kaydı izni"), last: true) {
+                    row(L("Ekran kaydı izni"),
+                        note: screenAccess ? nil : L("İzin Sistem Ayarları'nda açık görünmesine rağmen çalışmıyorsa anahtarı kapatıp tekrar açın ve Perch'i yeniden başlatın."),
+                        last: true) {
                         permission(screenAccess,
                                    url: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
                                    request: { CGRequestScreenCaptureAccess() })

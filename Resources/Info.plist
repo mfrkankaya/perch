@@ -26,6 +26,8 @@
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Perch, yönetici gerektiren işlemler için macOS şifre penceresini kullanır.</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>Perch, ekran görüntüsü almak için ekran kaydı iznine ihtiyaç duyar.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
