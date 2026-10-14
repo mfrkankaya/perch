@@ -11,6 +11,9 @@ struct ProviderUsage {
     var windows: [UsageWindow] = []
     var plan: String?
     var error: String?
+    /// Set when the stored login is missing or rejected (401), so the UI can offer
+    /// a one-click "run the CLI" button instead of just telling the user to.
+    var needsLogin = false
 }
 
 /// Reads the locally stored Claude Code / Codex CLI logins and asks each service for the
@@ -29,6 +32,9 @@ final class UsageStore: ObservableObject {
     private var timer: Timer?
 
     func refreshIfStale() {
+        // While a login is pending, always re-check — the user is likely coming back
+        // from the terminal flow and we don't want to show a stale "expired" state.
+        if claude?.needsLogin == true || codex?.needsLogin == true { refresh(); return }
         if let u = updatedAt, Date().timeIntervalSince(u) < 60 { return }
         refresh()
     }
@@ -96,13 +102,13 @@ final class UsageStore: ObservableObject {
         guard let raw,
               let obj = try? JSONSerialization.jsonObject(with: raw) as? [String: Any],
               let oauth = obj["claudeAiOauth"] as? [String: Any],
-              let token = oauth["accessToken"] as? String else { return nil }
+              let token = oauth["accessToken"] as? String, !token.isEmpty else { return nil }
         return (token, oauth["subscriptionType"] as? String)
     }
 
     static func fetchClaude() async -> ProviderUsage {
         guard let cred = await Task.detached(operation: { claudeCredentials() }).value else {
-            return ProviderUsage(error: L("Claude Code girişi bulunamadı"))
+            return ProviderUsage(error: L("Claude Code girişi bulunamadı"), needsLogin: true)
         }
         var req = URLRequest(url: URL(string: "https://api.anthropic.com/api/oauth/usage")!)
         req.setValue("Bearer \(cred.token)", forHTTPHeaderField: "Authorization")
@@ -111,7 +117,15 @@ final class UsageStore: ObservableObject {
         let (code, json) = await getJSON(req)
         var result = ProviderUsage(plan: cred.plan?.capitalized)
         guard code == 200, let json else {
-            result.error = code == 401 ? L("Oturum süresi dolmuş – terminalde `claude` çalıştır") : L("Alınamadı (%d)", code)
+            switch code {
+            case 401:
+                result.error = L("Oturum süresi dolmuş")
+                result.needsLogin = true
+            case 429:
+                result.error = L("Çok fazla istek – biraz sonra dene")
+            default:
+                result.error = L("Alınamadı (%d)", code)
+            }
             return result
         }
         if let limits = json["limits"] as? [[String: Any]], !limits.isEmpty {
@@ -153,7 +167,7 @@ final class UsageStore: ObservableObject {
         guard let data = FileManager.default.contents(atPath: base + "/auth.json"),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let tokens = obj["tokens"] as? [String: Any],
-              let token = tokens["access_token"] as? String else { return nil }
+              let token = tokens["access_token"] as? String, !token.isEmpty else { return nil }
         return (token, tokens["account_id"] as? String)
     }
 

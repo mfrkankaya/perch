@@ -165,7 +165,12 @@ struct MenuView: View {
                     }
                     .buttonStyle(.plain).disabled(usage.isLoading)
                 }
-                provider("Claude", tint: Dusk.orange, fill: Dusk.gradient(Dusk.amber, Dusk.orange), usage.claude)
+                provider("Claude", tint: Dusk.orange, fill: Dusk.gradient(Dusk.amber, Dusk.orange),
+                         login: {
+                             CLI.runInTerminal("claude", ["auth", "login"],
+                                               note: L("Claude Code girişi açılıyor. Tarayıcıdan onayla."))
+                         },
+                         usage.claude)
                 Rectangle().fill(Dusk.stroke).frame(height: 1)
                 provider("Codex", tint: Dusk.teal, fill: Dusk.gradient(Dusk.teal, Dusk.sky), usage.codex)
             }
@@ -173,7 +178,8 @@ struct MenuView: View {
     }
 
     @ViewBuilder
-    private func provider(_ name: String, tint: Color, fill: LinearGradient, _ u: ProviderUsage?) -> some View {
+    private func provider(_ name: String, tint: Color, fill: LinearGradient,
+                          login: (() -> Void)? = nil, _ u: ProviderUsage?) -> some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(spacing: 7) {
                 Circle().fill(tint).frame(width: 8, height: 8).shadow(color: tint, radius: 4)
@@ -183,7 +189,19 @@ struct MenuView: View {
             }
             if let u {
                 if let err = u.error, u.windows.isEmpty {
-                    Text(err).font(Dusk.caption).foregroundStyle(Dusk.text3)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(err).font(Dusk.caption).foregroundStyle(Dusk.text3)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if u.needsLogin, let login {
+                            Button {
+                                close()
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { login() }
+                            } label: {
+                                Label(L("Giriş yap"), systemImage: "terminal")
+                            }
+                            .buttonStyle(DuskButton(kind: .secondary))
+                        }
+                    }
                 }
                 ForEach(u.windows) { w in
                     VStack(alignment: .leading, spacing: 4) {

@@ -97,6 +97,54 @@ enum Shell {
     }
 }
 
+/// Launches the provider CLIs (Claude Code, Codex) on the user's behalf.
+enum CLI {
+    /// Finds a CLI through the user's login shell, so Homebrew / ~/.local/bin paths
+    /// resolve the same way they do in their own terminal.
+    static func path(_ name: String) -> String? {
+        let r = Shell.run("/bin/zsh", ["-lc", "command -v \(name) 2>/dev/null"])
+        let p = r.out.trimmingCharacters(in: .whitespacesAndNewlines)
+        return r.status == 0 && !p.isEmpty ? p : nil
+    }
+
+    /// Opens Terminal running the CLI. `claude auth login` is what actually starts
+    /// the flow: it refreshes a still-valid session in place, and when the refresh
+    /// token is dead it drives the browser login. A real TTY is deliberate — headless
+    /// (`claude -p`, piped stdin) the CLI neither refreshes nor prompts, and can even
+    /// drop the stored login. Perch never reads or writes the credentials itself.
+    static func runInTerminal(_ name: String, _ args: [String] = [], note: String) {
+        guard let exe = path(name) else {
+            presentTerminalError(name)
+            return
+        }
+        let launch = ([exe] + args).map(Shell.quote).joined(separator: " ")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("perch-\(name).command")
+        let script = """
+        #!/bin/zsh -l
+        cd "$HOME"
+        clear
+        echo \(Shell.quote(note))
+        echo
+        exec \(launch)
+        """
+        do {
+            try script.write(to: url, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+            NSWorkspace.shared.open(url)
+        } catch {
+            presentTerminalError(name)
+        }
+    }
+
+    private static func presentTerminalError(_ name: String) {
+        let a = NSAlert()
+        a.messageText = L("`%@` bulunamadı", name)
+        a.informativeText = L("Terminalde `%@` komutunu çalıştırıp tarayıcıdan giriş yapabilirsin.", name)
+        a.addButton(withTitle: L("Tamam"))
+        a.runModal()
+    }
+}
+
 enum FS {
     static let home = FileManager.default.homeDirectoryForCurrentUser.path
 
