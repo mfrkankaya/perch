@@ -19,7 +19,7 @@
 
 ---
 
-Perch replaces a handful of single-purpose utilities with one small app that lives in your menu bar. It keeps the parts people actually use from Amphetamine, CleanShot, CleanMyMac, Pearcleaner and Activity Monitor, drops the rest, and does nothing in the background unless you ask it to.
+Perch replaces a handful of single-purpose utilities with one small app that lives in your menu bar. Staying awake, capturing screenshots, clearing out clutter, finding large files, uninstalling apps and checking your AI usage limits all live in one place — and Perch does nothing in the background unless you ask it to.
 
 <p align="center">
   <img src="docs/menu.png" width="340" alt="Perch menu bar panel">
@@ -30,9 +30,9 @@ Perch replaces a handful of single-purpose utilities with one small app that liv
 ### ☀️ Stay awake
 - One switch to keep your Mac awake: indefinitely or for 15 min, 1, 2, 4 or 8 hours.
 - Optionally keep the display on too.
-- **Mouse jiggler**: automatically nudges the cursor by 1 pixel after 1, 3, 5 or 10 minutes of complete inactivity to keep Slack, Teams, and screensavers active while you're away without disturbing your work.
+- **Mouse jiggler**: automatically nudges the cursor by 1 pixel after 1, 3, 5 or 10 minutes of complete inactivity, so you don't get marked away and the screensaver stays off while you're gone — without disturbing your work.
 - **Run with the lid closed**, with no external display required (`pmset disablesleep`). One admin prompt the first time, then it's passwordless via a sudoers rule scoped to exactly two commands. The setting is **always restored when Perch quits**.
-- The switch updates instantly and rolls back with an error if something fails. It also detects other clamshell tools (Amphetamine, Vorssaint…) that keep reverting it.
+- The switch updates instantly and rolls back with an error if something fails. It also detects other clamshell tools that keep reverting the setting.
 
 ### 📊 AI usage limits
 - **Claude Code**: 5-hour session, weekly, and per-model weekly windows.
@@ -59,7 +59,7 @@ Lists your apps and finds what each one leaves behind: Application Support, cach
 ### 📈 Activity
 A plain-language answer to "why is my Mac slow?":
 - A one-line verdict at the top.
-- Top CPU and memory users, with helper processes **grouped into their app** (16 Chrome helpers become one Chrome row).
+- Top CPU and memory users, with helper processes **grouped into their app** (16 helper processes become a single row).
 - One-click quit.
 
 <p align="center">
