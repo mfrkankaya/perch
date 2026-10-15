@@ -89,6 +89,7 @@ extension Loc {
         "Codex girişi bulunamadı (~/.codex/auth.json)": "No Codex login found (~/.codex/auth.json)",
         "Oturum süresi dolmuş": "Session expired",
         "Çok fazla istek – biraz sonra dene": "Too many requests – try again shortly",
+        "Oturum yenilenemedi (çok fazla istek) – birkaç dakika sonra tekrar denenecek": "Couldn't renew the session (rate limited) – will retry in a few minutes",
         "Giriş yap": "Sign in",
         "Claude Code girişi açılıyor. Tarayıcıdan onayla.": "Opening Claude Code sign-in. Confirm in the browser.",
         "`%@` bulunamadı": "`%@` not found",

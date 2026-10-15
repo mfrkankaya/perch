@@ -27,6 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         UsageStore.shared.onUpdate = { [weak status] in status?.refreshButton() }
         UsageStore.shared.configureBackgroundPolling()
         KeepAwake.shared.onChange = { [weak status] in status?.refreshButton() }
+        LidDimmer.shared.start()
         // `open -a Perch --args --tab disk` opens a window straight away.
         if let i = CommandLine.arguments.firstIndex(of: "--tab"), i + 1 < CommandLine.arguments.count,
            let tab = MainTab(rawValue: CommandLine.arguments[i + 1]) {
@@ -79,6 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         KeepAwake.shared.stop()
         LidSleep.shared.restoreOnQuit()
+        LidDimmer.shared.stop()
         MouseJiggler.shared.stop()
     }
 

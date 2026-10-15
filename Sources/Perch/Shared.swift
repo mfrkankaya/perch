@@ -13,6 +13,7 @@ enum Keys {
     static let jigglerEnabled = "jigglerEnabled"
     static let jigglerInterval = "jigglerInterval"
     static let updateRelaunchLid = "updateRelaunchLid"
+    static let lidSavedBrightness = "lidSavedBrightness"
     static let updateRelaunchAwake = "updateRelaunchAwake"
     static let autoCheckUpdates = "autoCheckUpdates"
     static let lastUpdateCheck = "lastUpdateCheck"
@@ -70,14 +71,20 @@ enum Fmt {
 
 enum Shell {
     @discardableResult
-    static func run(_ path: String, _ args: [String]) -> (status: Int32, out: String) {
+    static func run(_ path: String, _ args: [String], input: String? = nil) -> (status: Int32, out: String) {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: path)
         p.arguments = args
         let pipe = Pipe()
         p.standardOutput = pipe
         p.standardError = FileHandle.nullDevice
+        let inPipe = input == nil ? nil : Pipe()
+        if let inPipe { p.standardInput = inPipe }
         do { try p.run() } catch { return (-1, "") }
+        if let inPipe, let input {
+            inPipe.fileHandleForWriting.write(Data(input.utf8))
+            try? inPipe.fileHandleForWriting.close()
+        }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         p.waitUntilExit()
         return (p.terminationStatus, String(decoding: data, as: UTF8.self))
