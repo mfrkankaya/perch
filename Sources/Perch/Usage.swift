@@ -45,10 +45,13 @@ final class UsageStore: ObservableObject {
     func refresh() {
         guard !isLoading else { return }
         isLoading = true
+        let showClaude = UserDefaults.standard.bool(forKey: Keys.showClaudeInLimits)
+        let showCodex = UserDefaults.standard.bool(forKey: Keys.showCodexInLimits)
+        let showOpenCode = UserDefaults.standard.bool(forKey: Keys.showOpenCodeInLimits)
         Task {
-            async let c = Self.fetchClaude()
-            async let x = Self.fetchCodex()
-            async let o = Self.fetchOpenCode()
+            async let c: ProviderUsage? = showClaude ? Self.fetchClaude() : nil
+            async let x: ProviderUsage? = showCodex ? Self.fetchCodex() : nil
+            async let o: ProviderUsage? = showOpenCode ? Self.fetchOpenCode() : nil
             let (cc, xx, oo) = await (c, x, o)
             claude = cc
             codex = xx

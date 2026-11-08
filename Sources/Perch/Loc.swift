@@ -204,7 +204,7 @@ extension Loc {
         "Genel": "General", "Dil": "Language", "Sistem": "System",
         "Girişte otomatik başlat": "Launch at login",
         "Tam Disk Erişimi": "Full Disk Access", "Sistem Ayarları'nı aç": "Open System Settings",
-        "Menü çubuğunda Claude oturum yüzdesini göster": "Show Claude session % in the menu bar",
+        "AI limitleri": "AI limits",
         "Uyanık kalma": "Stay awake", "Ekranı da açık tut": "Keep the display on too",
         "Kapak kapalı modu": "Lid-closed mode", "Şifresiz": "Passwordless", "Şifresiz kullanımı kur…": "Set up passwordless use…",
         "Kapak modu `pmset disablesleep` kullanır ve root ister. Şifresiz kurulum, yalnızca bu iki pmset komutuna izin veren bir sudoers kuralı ekler (/etc/sudoers.d/perch). Perch kapanırken ayar geri alınır.":

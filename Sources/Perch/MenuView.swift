@@ -8,6 +8,9 @@ struct MenuView: View {
     @ObservedObject private var jiggler = MouseJiggler.shared
     @ObservedObject private var usage = UsageStore.shared
     @ObservedObject private var updater = Updater.shared
+    @AppStorage(Keys.showClaudeInLimits) private var showClaudeInLimits = true
+    @AppStorage(Keys.showCodexInLimits) private var showCodexInLimits = true
+    @AppStorage(Keys.showOpenCodeInLimits) private var showOpenCodeInLimits = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -165,21 +168,31 @@ struct MenuView: View {
                     }
                     .buttonStyle(.plain).disabled(usage.isLoading)
                 }
-                provider("Claude", tint: Dusk.orange, fill: Dusk.gradient(Dusk.amber, Dusk.orange),
-                         login: {
-                             CLI.runInTerminal("claude", ["auth", "login"],
-                                               note: L("Claude Code girişi açılıyor. Tarayıcıdan onayla."))
-                         },
-                         usage.claude)
-                Rectangle().fill(Dusk.stroke).frame(height: 1)
-                provider("Codex", tint: Dusk.teal, fill: Dusk.gradient(Dusk.teal, Dusk.sky), usage.codex)
-                Rectangle().fill(Dusk.stroke).frame(height: 1)
-                provider("OpenCode", tint: Dusk.violet, fill: Dusk.gradient(Dusk.violet, Dusk.sky),
-                         login: {
-                             CLI.runInTerminal("opencode", ["auth", "login", "opencode", "--method", "device"],
-                                               note: L("OpenCode girişi açılıyor. Tarayıcıdan onayla."))
-                         },
-                         usage.opencode)
+                if showClaudeInLimits {
+                    provider("Claude", tint: Dusk.orange, fill: Dusk.gradient(Dusk.amber, Dusk.orange),
+                             login: {
+                                 CLI.runInTerminal("claude", ["auth", "login"],
+                                                   note: L("Claude Code girişi açılıyor. Tarayıcıdan onayla."))
+                             },
+                             usage.claude)
+                }
+                if showClaudeInLimits && (showCodexInLimits || showOpenCodeInLimits) {
+                    Rectangle().fill(Dusk.stroke).frame(height: 1)
+                }
+                if showCodexInLimits {
+                    provider("Codex", tint: Dusk.teal, fill: Dusk.gradient(Dusk.teal, Dusk.sky), usage.codex)
+                }
+                if showCodexInLimits && showOpenCodeInLimits {
+                    Rectangle().fill(Dusk.stroke).frame(height: 1)
+                }
+                if showOpenCodeInLimits {
+                    provider("OpenCode", tint: Dusk.violet, fill: Dusk.gradient(Dusk.violet, Dusk.sky),
+                             login: {
+                                 CLI.runInTerminal("opencode", ["auth", "login", "opencode", "--method", "device"],
+                                                   note: L("OpenCode girişi açılıyor. Tarayıcıdan onayla."))
+                             },
+                             usage.opencode)
+                }
             }
         }
     }

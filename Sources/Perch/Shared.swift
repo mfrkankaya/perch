@@ -6,6 +6,9 @@ enum Keys {
     static let saveFolder = "saveFolder"
     static let shelfAutoClose = "shelfAutoClose"
     static let showClaudeInMenuBar = "showClaudeInMenuBar"
+    static let showClaudeInLimits = "showClaudeInLimits"
+    static let showCodexInLimits = "showCodexInLimits"
+    static let showOpenCodeInLimits = "showOpenCodeInLimits"
     static let keepDisplayOn = "keepDisplayOn"
     static let hotkeyArea = "hotkeyArea"
     static let hotkeyScreen = "hotkeyScreen"
@@ -24,6 +27,9 @@ enum Keys {
             saveFolder: FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Desktop").path,
             shelfAutoClose: 0,
             showClaudeInMenuBar: false,
+            showClaudeInLimits: true,
+            showCodexInLimits: true,
+            showOpenCodeInLimits: true,
             keepDisplayOn: true,
             hotkeyArea: Hotkey.defaultArea.encoded,
             hotkeyScreen: Hotkey.defaultScreen.encoded,

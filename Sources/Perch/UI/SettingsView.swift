@@ -7,6 +7,9 @@ struct SettingsView: View {
     @AppStorage(Keys.saveFolder) private var saveFolder = FS.home + "/Desktop"
     @AppStorage(Keys.shelfAutoClose) private var shelfAutoClose = 0
     @AppStorage(Keys.showClaudeInMenuBar) private var showClaude = false
+    @AppStorage(Keys.showClaudeInLimits) private var showClaudeInLimits = true
+    @AppStorage(Keys.showCodexInLimits) private var showCodexInLimits = true
+    @AppStorage(Keys.showOpenCodeInLimits) private var showOpenCodeInLimits = true
     @AppStorage(Keys.keepDisplayOn) private var keepDisplayOn = true
     @ObservedObject private var lid = LidSleep.shared
     @ObservedObject private var jiggler = MouseJiggler.shared
@@ -36,6 +39,18 @@ struct SettingsView: View {
                     row(L("Tam Disk Erişimi"), last: true) {
                         permission(FS.hasFullDiskAccess,
                                    url: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")
+                    }
+                }
+
+                group(L("AI limitleri"), "sparkles", Dusk.violet) {
+                    row(L("Claude")) {
+                        Toggle("", isOn: $showClaudeInLimits).toggleStyle(PillSwitch())
+                    }
+                    row(L("Codex")) {
+                        Toggle("", isOn: $showCodexInLimits).toggleStyle(PillSwitch())
+                    }
+                    row(L("OpenCode"), last: true) {
+                        Toggle("", isOn: $showOpenCodeInLimits).toggleStyle(PillSwitch())
                     }
                 }
 
@@ -136,6 +151,9 @@ struct SettingsView: View {
             }
         }
         .onChange(of: showClaude) { _, _ in UsageStore.shared.configureBackgroundPolling() }
+        .onChange(of: showClaudeInLimits) { _, _ in UsageStore.shared.refresh() }
+        .onChange(of: showCodexInLimits) { _, _ in UsageStore.shared.refresh() }
+        .onChange(of: showOpenCodeInLimits) { _, _ in UsageStore.shared.refresh() }
         .onChange(of: keepDisplayOn) { _, _ in KeepAwake.shared.reapply() }
     }
 
