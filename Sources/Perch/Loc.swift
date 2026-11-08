@@ -96,6 +96,10 @@ extension Loc {
         "Terminalde `%@` komutunu çalıştırıp tarayıcıdan giriş yapabilirsin.": "Run `%@` in Terminal and sign in through the browser.",
         "Oturum süresi dolmuş – terminalde `codex` çalıştır": "Session expired – run `codex` in a terminal",
         "Alınamadı (%d)": "Couldn't fetch (%d)",
+        "OpenCode girişi açılıyor. Tarayıcıdan onayla.": "Opening OpenCode sign-in. Confirm in the browser.",
+        "OpenCode Console girişi bulunamadı": "No OpenCode Console login found (use browser sign-in, not an API key)",
+        "Aylık (dönen)": "Monthly (rolling)", "Bütçe": "Budget",
+        "OpenCode girişi açılıyor. Giriş yöntemini seç ve tarayıcıdan onayla.": "Opening OpenCode sign-in. Pick a method and confirm in the browser.",
 
         // Screenshot shelf
         "Sürükle-bırak · çift tıkla aç": "Drag & drop · double-click to open",

@@ -17,15 +17,17 @@ struct ProviderUsage {
 }
 
 /// Reads the locally stored Claude Code / Codex CLI logins and asks each service for the
-/// current rate-limit windows. Fetches only when the menu opens (or every 5 min when the
-/// menu-bar percentage is enabled). An expired Claude token is refreshed and written back
-/// the same way Claude Code does it; Codex tokens are only read.
+/// current rate-limit windows. OpenCode's limits live behind its own background service,
+/// so that one is fetched through the `opencode` CLI. Fetches only when the menu opens
+/// (or every 5 min when the menu-bar percentage is enabled). An expired Claude token is
+/// refreshed and written back the same way Claude Code does it; Codex tokens are only read.
 @MainActor
 final class UsageStore: ObservableObject {
     static let shared = UsageStore()
 
     @Published private(set) var claude: ProviderUsage?
     @Published private(set) var codex: ProviderUsage?
+    @Published private(set) var opencode: ProviderUsage?
     @Published private(set) var isLoading = false
     @Published private(set) var updatedAt: Date?
     var onUpdate: (() -> Void)?
@@ -35,7 +37,7 @@ final class UsageStore: ObservableObject {
     func refreshIfStale() {
         // While a login is pending, always re-check — the user is likely coming back
         // from the terminal flow and we don't want to show a stale "expired" state.
-        if claude?.needsLogin == true || codex?.needsLogin == true { refresh(); return }
+        if claude?.needsLogin == true || codex?.needsLogin == true || opencode?.needsLogin == true { refresh(); return }
         if let u = updatedAt, Date().timeIntervalSince(u) < 60 { return }
         refresh()
     }
@@ -46,9 +48,11 @@ final class UsageStore: ObservableObject {
         Task {
             async let c = Self.fetchClaude()
             async let x = Self.fetchCodex()
-            let (cc, xx) = await (c, x)
+            async let o = Self.fetchOpenCode()
+            let (cc, xx, oo) = await (c, x, o)
             claude = cc
             codex = xx
+            opencode = oo
             updatedAt = Date()
             isLoading = false
             onUpdate?()
@@ -320,6 +324,66 @@ final class UsageStore: ObservableObject {
         }
         if result.windows.isEmpty { result.error = L("Limit bilgisi yok") }
         return result
+    }
+
+    // MARK: OpenCode
+
+    /// OpenCode keeps its login (and any extension state) in its own background service,
+    /// so instead of touching credentials we let the CLI ask the service and parse the
+    /// same payload its own UI shows. `data` is nil until the user has connected OpenCode
+    /// Console via `opencode auth login`; Go meters are percent-based and budgets are
+    /// spent/limit money amounts.
+    static func fetchOpenCode() async -> ProviderUsage {
+        guard let cli = CLI.path("opencode") else {
+            return ProviderUsage(error: L("`%@` bulunamadı", "opencode"))
+        }
+        let raw = await Task.detached(operation: {
+            Shell.run(cli, ["api", "GET", "/api/experimental/usage/limits"])
+        }).value
+        guard raw.status == 0, let data = raw.out.data(using: .utf8),
+              let wrapper = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+            return ProviderUsage(error: L("Alınamadı (%d)", raw.status))
+        }
+        guard let info = wrapper["data"] as? [String: Any] else {
+            return ProviderUsage(error: L("OpenCode Console girişi bulunamadı"), needsLogin: true)
+        }
+        var result = ProviderUsage()
+        let go = info["go"] as? [String: Any]
+        if go != nil { result.plan = "Go" }
+        for (key, label) in [("rolling", L("Aylık (dönen)")), ("weekly", L("Haftalık")), ("monthly", L("Aylık"))] {
+            guard let m = go?[key] as? [String: Any],
+                  let pct = (m["percent"] as? NSNumber)?.doubleValue else { continue }
+            result.windows.append(UsageWindow(id: "go-\(key)", label: label, percent: pct,
+                                              resetsAt: epoch(m["resetsAt"])))
+        }
+        if let budgets = info["budgets"] as? [[String: Any]] {
+            for (i, b) in budgets.enumerated() {
+                guard let limit = money(b["limit"]), limit > 0, let spent = money(b["spent"]) else { continue }
+                var label = L("Bütçe")
+                if let models = b["models"] as? [[String: Any]], models.count == 1,
+                   let name = models[0]["name"] as? String {
+                    label += " · " + name
+                }
+                result.windows.append(UsageWindow(id: "budget-\(i)-\(b["id"] ?? "")", label: label,
+                                                  percent: spent / limit * 100, resetsAt: epoch(b["resetsAt"])))
+            }
+        }
+        if result.windows.isEmpty { result.error = L("Limit bilgisi yok") }
+        return result
+    }
+
+    /// Budget amounts: plain numbers (cents or dollars – the ratio makes the unit moot),
+    /// or `{amount, currency}` objects like ACP clients send.
+    private static func money(_ any: Any?) -> Double? {
+        if let n = any as? NSNumber { return n.doubleValue }
+        if let d = any as? [String: Any], let a = (d["amount"] as? NSNumber)?.doubleValue { return a }
+        if let s = any as? String { return Double(s) }
+        return nil
+    }
+
+    /// OpenCode reports `resetsAt` as milliseconds since the Unix epoch.
+    private static func epoch(_ any: Any?) -> Date? {
+        (any as? NSNumber).map { Date(timeIntervalSince1970: $0.doubleValue / 1000) } ?? parseISO(any)
     }
 
     private static func windowLabel(_ secs: Int) -> String {

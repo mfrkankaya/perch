@@ -173,6 +173,13 @@ struct MenuView: View {
                          usage.claude)
                 Rectangle().fill(Dusk.stroke).frame(height: 1)
                 provider("Codex", tint: Dusk.teal, fill: Dusk.gradient(Dusk.teal, Dusk.sky), usage.codex)
+                Rectangle().fill(Dusk.stroke).frame(height: 1)
+                provider("OpenCode", tint: Dusk.violet, fill: Dusk.gradient(Dusk.violet, Dusk.sky),
+                         login: {
+                             CLI.runInTerminal("opencode", ["auth", "login", "opencode", "--method", "device"],
+                                               note: L("OpenCode girişi açılıyor. Tarayıcıdan onayla."))
+                         },
+                         usage.opencode)
             }
         }
     }

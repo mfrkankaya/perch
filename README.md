@@ -115,15 +115,16 @@ The script signs with your first *Apple Development* / *Developer ID* identity, 
 
 ## Privacy
 
-Perch has no analytics, no telemetry and no update pings. The only network requests it ever makes are the two usage calls below, and only when the menu is open (or every 5 minutes if you enable the menu bar percentage):
+Perch has no analytics, no telemetry and no update pings. The only network requests it ever makes are the usage calls below (OpenCode is an exception: it asks the `opencode` CLI, which talks to OpenCode's own background server), and only when the menu is open (or every 5 minutes if you enable the menu bar percentage):
 
 | Service | Credentials read from | Endpoint |
 |---|---|---|
 | Claude Code | Keychain item `Claude Code-credentials` (via `/usr/bin/security`, so no Keychain prompt), or `~/.claude/.credentials.json` | `GET https://api.anthropic.com/api/oauth/usage` |
 | Codex | `~/.codex/auth.json` (or `$CODEX_HOME`) | `GET https://chatgpt.com/backend-api/wham/usage` |
+| OpenCode | None – shipped to the `opencode` CLI | `opencode api GET /api/experimental/usage/limits` |
 
 > [!NOTE]
-> Both endpoints are undocumented and may change. If a session has expired, run `claude` or `codex` once and Perch picks up the fresh login.
+> All of these endpoints are undocumented and may change. If a session has expired, run `claude`, `codex` or `opencode` once and Perch picks up the fresh login. OpenCode only has limit data after you've connected OpenCode Console (`opencode auth login opencode --method device`); an API key alone won't populate it. If you have several stored accounts, run `opencode auth switch opencode` to make the Console one active.
 >
 > Perch also has a **manual** update check (Settings → Updates, or the arrow button in the menu). It contacts `api.github.com/repos/mfrkankaya/perch/releases/latest` only when you ask. If a newer release is found, "Download & install" fetches the signed `.zip`, verifies the bundle identifier and version, swaps the app in place (asking for admin permission only if the install location isn't writable), then quits and re-opens the new version — carrying your awake and lid-mode state across the restart. It never installs anything without your confirmation. An opt-in **automatic check** toggle (off by default, at most once a day, silent — it only shows a dot on the menu's update button) is available in the same section.
 
