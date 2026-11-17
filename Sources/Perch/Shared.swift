@@ -115,6 +115,11 @@ enum CLI {
     /// Finds a CLI through the user's login shell, so Homebrew / ~/.local/bin paths
     /// resolve the same way they do in their own terminal.
     static func path(_ name: String) -> String? {
+        // Self-updating installers (OpenCode's, for one) put the binary in ~/.<name>/bin and add
+        // that to PATH only in .zshrc, which `zsh -lc` doesn't read — so an older Homebrew copy
+        // would win. Prefer the installer's copy when it's there.
+        let own = FS.home + "/.\(name)/bin/\(name)"
+        if FileManager.default.isExecutableFile(atPath: own) { return own }
         let r = Shell.run("/bin/zsh", ["-lc", "command -v \(name) 2>/dev/null"])
         let p = r.out.trimmingCharacters(in: .whitespacesAndNewlines)
         return r.status == 0 && !p.isEmpty ? p : nil
